@@ -4,7 +4,7 @@
   --royale-surface: #181e2c;
   --royale-surface-hover: #1f2638;
   --royale-pill-dark: #10141f;
-  --royale-border: rgba(255, 255, 255, 0.07);
+  --royale-border: rgba(255, 255, 255, 0.08);
   --royale-gold: #facc15;
   --royale-gold-deep: #eab308;
   --royale-text-primary: #ffffff;
@@ -15,8 +15,8 @@
 .royale-canvas {
   background-color: var(--royale-bg);
   background-image:
-    radial-gradient(circle at 50% 14%, rgba(250, 204, 21, 0.08) 0%, transparent 48%),
-    radial-gradient(circle at 50% 0%, var(--royale-bg-glow) 0%, var(--royale-bg) 75%);
+    radial-gradient(circle at 50% 12%, rgba(250, 204, 21, 0.09) 0%, transparent 46%),
+    radial-gradient(ellipse at top, var(--royale-bg-glow) 0%, var(--royale-bg) 75%);
   color: var(--royale-text-primary);
   position: relative;
   overflow-x: hidden;
@@ -26,26 +26,32 @@
 .royale-canvas::before,
 .royale-canvas::after {
   content: '';
-  position: absolute;
-  width: 150px;
-  height: 150px;
-  border-radius: 26px;
+  position: fixed;
+  width: 155px;
+  height: 155px;
+  border-radius: 28px;
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.01));
   border: 1px solid rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.06);
   pointer-events: none;
   z-index: 0;
 }
 
 .royale-canvas::before {
-  top: 78px;
-  left: -34px;
+  top: 84px;
+  left: -36px;
   transform: rotate(-18deg);
 }
 
 .royale-canvas::after {
-  top: 38px;
-  right: -28px;
+  top: 40px;
+  right: -30px;
   transform: rotate(22deg);
+}
+
+.royale-canvas > * {
+  position: relative;
+  z-index: 1;
 }
 
 .royale-card {
@@ -57,17 +63,13 @@
 .royale-btn-gold {
   background: linear-gradient(180deg, #facc15 0%, #eab308 100%);
   color: #0b0e17;
-  box-shadow: 0 8px 24px rgba(250, 204, 21, 0.22);
+  box-shadow: 0 8px 24px rgba(250, 204, 21, 0.24);
   transition: transform 0.15s ease, filter 0.15s ease;
 }
 
 .royale-btn-gold:hover {
   filter: brightness(1.05);
   transform: translateY(-1px);
-}
-
-.royale-btn-gold:active {
-  transform: scale(0.985);
 }
 
 .royale-btn-slate {
@@ -85,10 +87,5 @@
   background: rgba(16, 20, 31, 0.85);
   border: 1.5px solid var(--royale-gold);
   color: var(--royale-gold);
-  box-shadow: 0 0 20px rgba(250, 204, 21, 0.1);
-  transition: background-color 0.15s ease, transform 0.15s ease;
-}
-
-.royale-btn-outline-gold:hover {
-  background: rgba(250, 204, 21, 0.1);
+  box-shadow: 0 0 20px rgba(250, 204, 21, 0.12);
 }
