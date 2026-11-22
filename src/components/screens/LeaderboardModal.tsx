@@ -5,7 +5,7 @@ import {
   LeaderboardEntry,
 } from '../../services/leaderboardService';
 
-interface LeaderboardModalProps {
+export interface LeaderboardModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentUser?: {
@@ -245,3 +245,5 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
     </div>
   );
 };
+
+export default LeaderboardModal;
