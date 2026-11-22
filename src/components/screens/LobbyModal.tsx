@@ -25,7 +25,7 @@ export interface LobbyModalProps {
   serverConnected: boolean;
   searchingMatch: boolean;
   waitingRoom: any | null;
-  onlineRooms: any[];
+  onlineRooms?: any[];
   mpError: string | null;
   friends: any[];
   incomingRequests: any[];
@@ -54,7 +54,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
   serverConnected,
   searchingMatch,
   waitingRoom,
-  onlineRooms,
+  onlineRooms = [],
   mpError,
   friends,
   incomingRequests,
