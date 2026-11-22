@@ -1,56 +1,48 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Bot,
   Check,
   ChevronRight,
-  Coins,
   Copy,
   Crown,
-  Gamepad2,
-  Globe,
   Hash,
   Loader2,
+  LogOut,
   Play,
+  Search,
+  Settings,
   Trophy,
+  UserPlus,
   Users,
   X,
 } from 'lucide-react';
-import { AIDifficulty, GameMode, PlayerColor, PlayerConfig } from '../../types/game';
 import { UserProfile } from '../../types/auth';
-import {
-  FriendProfile,
-  FriendRequestRecord,
-  GameInvitePayload,
-} from '../../types/friends';
-import { LobbyMode, OnlineRoomState } from '../../types/multiplayer';
-import { COLOR_ORDER, PLAYER_THEMES } from '../../game/constants/boardConstants';
-import { AVATAR_OPTIONS } from './LoginScreen';
-import { ProfileModal } from './ProfileModal';
-import { FriendsModal } from '../friends/FriendsModal';
+import { LeaderboardModal } from './LeaderboardModal';
 
-interface LobbyModalProps {
+export interface LobbyModalProps {
   user: UserProfile;
   onlineCount: number;
   serverConnected: boolean;
   searchingMatch: boolean;
-  waitingRoom: OnlineRoomState | null;
+  waitingRoom: any | null;
+  onlineRooms: any[];
   mpError: string | null;
-  friends: FriendProfile[];
-  incomingRequests: FriendRequestRecord[];
-  outgoingRequests: FriendRequestRecord[];
-  presenceMap: Record<string, { online: boolean; inGame: boolean }>;
+  friends: any[];
+  incomingRequests: any[];
+  outgoingRequests: any[];
+  presenceMap: Record<string, any>;
   unreadCounts: Record<string, number>;
-  pendingInvite: GameInvitePayload | null;
-  onActiveChatChange?: (friendUid: string | null) => void;
-  onAcceptInvite: (invite: GameInvitePayload) => void;
+  pendingInvite: any | null;
+  onActiveChatChange: (friendUid: string | null) => void;
+  onAcceptGameInvite: (invite: any) => void;
   onDismissInvite: () => void;
-  onInviteFriend: (friend: FriendProfile) => void;
-  onUserUpdated: (updated: UserProfile) => void;
+  onAddFriend: (usernameOrId: string) => Promise<void> | void;
+  onUserUpdated: (updatedUser: UserProfile) => void;
   onLogout: () => void;
-  onStartOfflineGame: (players: PlayerConfig[], mode: GameMode) => void;
+  onStartOfflineGame: (...args: any[]) => void;
   onFindQuickMatch: (maxPlayers: 2 | 4) => void;
   onCancelQuickMatch: () => void;
-  onCreatePrivateRoom: (maxPlayers: 2 | 3 | 4) => void;
+  onCreatePrivateRoom: (maxPlayers: 2 | 4) => void;
   onJoinPrivateRoom: (code: string) => void;
   onStartPrivateRoom: (code: string) => void;
   onLeaveRoom: () => void;
@@ -62,6 +54,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
   serverConnected,
   searchingMatch,
   waitingRoom,
+  onlineRooms,
   mpError,
   friends,
   incomingRequests,
@@ -70,9 +63,9 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
   unreadCounts,
   pendingInvite,
   onActiveChatChange,
-  onAcceptInvite,
+  onAcceptGameInvite,
   onDismissInvite,
-  onInviteFriend,
+  onAddFriend,
   onUserUpdated,
   onLogout,
   onStartOfflineGame,
@@ -83,481 +76,670 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
   onStartPrivateRoom,
   onLeaveRoom,
 }) => {
-  const [showProfile, setShowProfile] = useState(false);
-  const [showFriends, setShowFriends] = useState(false);
-  const [mode, setMode] = useState<LobbyMode>('online-quick');
-  const [playerCount, setPlayerCount] = useState<2 | 3 | 4>(2);
-  const [difficulty, setDifficulty] = useState<AIDifficulty>('medium');
-  const [joinCode, setJoinCode] = useState('');
-  const [copied, setCopied] = useState(false);
+  const [playerCount, setPlayerCount] = useState<2 | 4>(2);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showPrivateModal, setShowPrivateModal] = useState(false);
+  const [showFriendsModal, setShowFriendsModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [roomCodeInput, setRoomCodeInput] = useState('');
+  const [friendQuery, setFriendQuery] = useState('');
+  const [copiedCode, setCopiedCode] = useState(false);
 
-  if (showProfile) {
-    return (
-      <ProfileModal
-        user={user}
-        onClose={() => setShowProfile(false)}
-        onUserUpdated={onUserUpdated}
-        onLogout={onLogout}
-      />
+  const profileData = user as any;
+  const displayName = profileData?.username || profileData?.displayName || 'Player';
+  const level = typeof profileData?.level === 'number' ? profileData.level : 1;
+  const coins = typeof profileData?.coins === 'number' ? profileData.coins : 1500;
+  const userUid = profileData?.uid || profileData?.id || '';
+
+  const totalUnread = useMemo(() => {
+    const msgUnread = Object.values(unreadCounts || {}).reduce(
+      (sum, count) => sum + (Number(count) || 0),
+      0
     );
-  }
+    return msgUnread + (incomingRequests?.length || 0);
+  }, [unreadCounts, incomingRequests]);
 
-  if (showFriends) {
-    return (
-      <FriendsModal
-        user={user}
-        friends={friends}
-        incomingRequests={incomingRequests}
-        outgoingRequests={outgoingRequests}
-        presenceMap={presenceMap}
-        unreadCounts={unreadCounts}
-        onActiveChatChange={onActiveChatChange}
-        onClose={() => setShowFriends(false)}
-        onInviteFriend={(friend) => {
-          setShowFriends(false);
-          onInviteFriend(friend);
-        }}
-      />
-    );
-  }
+  const activeRoomCode: string =
+    (waitingRoom as any)?.code || (waitingRoom as any)?.roomCode || '';
+  const activeRoomPlayers: any[] = (waitingRoom as any)?.players || [];
+  const activeRoomMax: number = (waitingRoom as any)?.maxPlayers || playerCount;
+  const isRoomHost =
+    !waitingRoom ||
+    (waitingRoom as any)?.hostUid === userUid ||
+    (waitingRoom as any)?.hostId === userUid ||
+    activeRoomPlayers[0]?.uid === userUid;
 
-  const avatarMeta =
-    AVATAR_OPTIONS.find((a) => a.id === user.avatar) ?? AVATAR_OPTIONS[0];
-  const AvatarIcon = avatarMeta.Icon;
-
-  const onlineFriends = friends.filter((f) => presenceMap[f.uid]?.online);
-  const totalUnread = Object.values(unreadCounts).reduce((sum, n) => sum + n, 0);
-  const totalSocialBadge = incomingRequests.length + totalUnread;
-
-  const handleCopyCode = (code: string) => {
-    navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
+  const handleCopyCode = () => {
+    if (!activeRoomCode) return;
+    navigator.clipboard?.writeText(activeRoomCode);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
   };
 
-  const handleOfflineLaunch = () => {
-    const activeColors: PlayerColor[] =
-      playerCount === 2 ? ['red', 'yellow'] : COLOR_ORDER.slice(0, playerCount);
-
-    const configs: PlayerConfig[] = COLOR_ORDER.map((color) => {
-      const isActive = activeColors.includes(color);
-      const isHuman = mode === 'local' ? true : color === 'red';
-      const playerName =
-        color === 'red'
-          ? user.username
-          : isHuman
-          ? `Player ${PLAYER_THEMES[color].name}`
-          : `${PLAYER_THEMES[color].name} Bot`;
-
-      return {
-        color,
-        name: playerName,
-        isAI: !isHuman,
-        difficulty,
-        active: isActive,
-      };
-    });
-
-    onStartOfflineGame(configs, mode === 'local' ? 'local' : 'vs-ai');
+  const handleJoinSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleaned = roomCodeInput.trim().toUpperCase();
+    if (!cleaned) return;
+    onJoinPrivateRoom(cleaned);
   };
 
-  if (waitingRoom && waitingRoom.status === 'WAITING') {
-    const isHost = waitingRoom.hostUid === user.uid;
-    const joinedUids = new Set(waitingRoom.players.map((p) => p.uid));
-    const invitableFriends = onlineFriends.filter((f) => !joinedUids.has(f.uid));
-
-    return (
-      <div className="w-full max-w-md mx-auto p-6 rounded-3xl bg-slate-900/95 border border-slate-800 shadow-2xl backdrop-blur-xl">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
-            Private Room Lobby
-          </span>
-          <button
-            type="button"
-            onClick={onLeaveRoom}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 text-xs font-bold text-slate-300 hover:text-white"
-          >
-            <X className="w-3.5 h-3.5" /> Leave
-          </button>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-slate-950 border border-amber-400/40 text-center mb-4">
-          <p className="text-[11px] uppercase tracking-widest text-slate-400 mb-1">
-            Share Room Code
-          </p>
-          <div className="flex items-center justify-center gap-2.5">
-            <span className="text-3xl font-black tracking-[0.22em] text-amber-400">
-              {waitingRoom.code}
-            </span>
-            <button
-              type="button"
-              onClick={() => handleCopyCode(waitingRoom.code)}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200"
-            >
-              {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
-
-        {invitableFriends.length > 0 && (
-          <div className="mb-4 p-3 rounded-2xl bg-slate-950/80 border border-slate-800">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 mb-2">
-              Invite Online Friends
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {invitableFriends.map((f) => (
-                <button
-                  key={f.uid}
-                  type="button"
-                  onClick={() => onInviteFriend(f)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-amber-400 text-xs font-bold text-slate-200 hover:text-slate-950 transition"
-                >
-                  <Gamepad2 className="w-3.5 h-3.5" /> {f.username}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="space-y-2 mb-5">
-          <p className="text-xs font-semibold text-slate-400">
-            Players Joined ({waitingRoom.players.length}/{waitingRoom.maxPlayers})
-          </p>
-          {waitingRoom.players.map((p) => {
-            const theme = PLAYER_THEMES[p.color];
-            return (
-              <div
-                key={p.uid}
-                className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800"
-              >
-                <div className="flex items-center gap-2.5">
-                  <span
-                    className="w-3.5 h-3.5 rounded-full"
-                    style={{ backgroundColor: theme.primary }}
-                  />
-                  <span className="text-sm font-bold text-white">{p.username}</span>
-                </div>
-                <span className="text-[11px] font-bold uppercase text-slate-400">
-                  {p.uid === waitingRoom.hostUid ? 'Host' : theme.name}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
-        {mpError && (
-          <p className="text-xs text-rose-400 text-center mb-3 font-semibold">{mpError}</p>
-        )}
-
-        {isHost ? (
-          <button
-            type="button"
-            disabled={waitingRoom.players.length < 2}
-            onClick={() => onStartPrivateRoom(waitingRoom.code)}
-            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-black text-sm uppercase tracking-wider disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg"
-          >
-            <Play className="w-4 h-4 fill-slate-950" />
-            {waitingRoom.players.length < 2 ? 'Waiting for Friend...' : 'Start Match Now'}
-          </button>
-        ) : (
-          <div className="py-3 rounded-2xl bg-slate-800/70 text-center text-xs font-bold text-slate-300 flex items-center justify-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
-            Waiting for host to start...
-          </div>
-        )}
-      </div>
-    );
-  }
+  const handleFriendSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const query = friendQuery.trim();
+    if (!query) return;
+    await onAddFriend(query);
+    setFriendQuery('');
+  };
 
   return (
-    <div className="w-full max-w-md mx-auto p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-2xl backdrop-blur-xl">
-      {/* Live Game Invite Banner */}
+    <div className="w-full max-w-md flex flex-col gap-5 select-none text-white">
+      {/* Incoming Game Invite Banner */}
       {pendingInvite && (
-        <div className="mb-4 p-3 rounded-2xl bg-gradient-to-r from-emerald-500/20 to-amber-500/20 border border-emerald-400/50 flex items-center justify-between gap-2">
+        <div className="royale-card rounded-2xl p-3.5 border-[#FACC15]/50 flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-black text-emerald-300 truncate">
-              {pendingInvite.fromUsername} invited you!
+            <p className="text-xs font-extrabold text-[#FACC15] uppercase tracking-wider">
+              Game Invite
             </p>
-            <p className="text-[11px] text-slate-300">Room: {pendingInvite.roomCode}</p>
+            <p className="text-sm font-bold text-white truncate">
+              {(pendingInvite as any)?.fromUsername || 'A friend'} invited you to play!
+            </p>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
-              onClick={() => onAcceptInvite(pendingInvite)}
-              className="px-3 py-1.5 rounded-xl bg-emerald-400 text-slate-950 text-xs font-black uppercase"
+              onClick={() => onAcceptGameInvite(pendingInvite)}
+              className="px-3.5 py-1.5 rounded-full royale-btn-gold text-xs font-extrabold cursor-pointer"
             >
               Join
             </button>
             <button
               type="button"
               onClick={onDismissInvite}
-              className="p-1.5 rounded-xl bg-slate-800 text-slate-300"
+              aria-label="Dismiss Invite"
+              className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[#8B95A8] hover:text-white cursor-pointer"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>
       )}
 
-      {/* Top Row: Profile Card + Friends Button with Unread/Request Badge */}
-      <div className="flex items-stretch gap-2 mb-4">
-        <button
-          type="button"
-          onClick={() => setShowProfile(true)}
-          className="flex-1 flex items-center justify-between gap-2 p-2.5 rounded-2xl bg-slate-950/85 hover:bg-slate-950 border border-slate-800 hover:border-amber-400/50 text-left transition group min-w-0"
-        >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div
-              className={`w-10 h-10 rounded-xl bg-gradient-to-br ${avatarMeta.gradient} flex items-center justify-center text-white shrink-0 shadow`}
-            >
-              <AvatarIcon className="w-5 h-5" />
-            </div>
-            <div className="truncate">
-              <div className="flex items-center gap-1">
-                <span className="text-sm font-bold text-white truncate">{user.username}</span>
-                <ChevronRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400 shrink-0" />
-              </div>
-              <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                <span>Lvl {user.level}</span>
-                <span className="flex items-center gap-0.5 text-amber-400 font-semibold">
-                  <Coins className="w-3 h-3" /> {user.coins.toLocaleString()}
-                </span>
-                <span className="flex items-center gap-0.5 text-emerald-400 font-semibold">
-                  <Trophy className="w-3 h-3" /> {user.wins}W
-                </span>
-              </div>
-            </div>
-          </div>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setShowFriends(true)}
-          className="relative px-3.5 rounded-2xl bg-slate-950/85 hover:bg-amber-400 border border-slate-800 hover:border-amber-300 text-slate-200 hover:text-slate-950 flex flex-col items-center justify-center gap-0.5 transition shrink-0"
-        >
-          <Users className="w-4 h-4" />
-          <span className="text-[10px] font-black uppercase">Friends</span>
-          {totalSocialBadge > 0 && (
-            <span
-              className={`absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full text-[10px] font-black flex items-center justify-center shadow ${
-                incomingRequests.length > 0
-                  ? 'bg-rose-500 text-white'
-                  : 'bg-sky-400 text-slate-950'
-              }`}
-            >
-              {totalSocialBadge > 9 ? '9+' : totalSocialBadge}
-            </span>
-          )}
-        </button>
-      </div>
-
-      {/* Title + Live Server Pill */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div className="p-2 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-slate-950">
-            <Crown className="w-5 h-5" />
-          </div>
-          <h1 className="text-xl font-black tracking-tight text-white">
-            LUDO <span className="text-amber-400">ROYALE</span>
-          </h1>
-        </div>
-
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-950 border border-slate-800 text-[11px] font-bold">
-          <span
-            className={`w-2 h-2 rounded-full ${
-              serverConnected ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
-            }`}
-          />
-          <span className="text-slate-300">
-            {serverConnected ? `${onlineCount} Online` : 'Server Offline'}
-          </span>
-        </div>
-      </div>
-
-      {/* 4 Game Modes Grid */}
-      <div className="grid grid-cols-2 gap-2 mb-5">
-        <button
-          type="button"
-          onClick={() => {
-            setMode('online-quick');
-            if (playerCount === 3) setPlayerCount(2);
-          }}
-          className={`flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-xs font-bold border transition ${
-            mode === 'online-quick'
-              ? 'bg-amber-400 text-slate-950 border-amber-300 shadow'
-              : 'bg-slate-800/70 text-slate-300 border-slate-700 hover:bg-slate-800'
-          }`}
-        >
-          <Globe className="w-4 h-4" /> Play Online
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setMode('online-private')}
-          className={`flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-xs font-bold border transition ${
-            mode === 'online-private'
-              ? 'bg-amber-400 text-slate-950 border-amber-300 shadow'
-              : 'bg-slate-800/70 text-slate-300 border-slate-700 hover:bg-slate-800'
-          }`}
-        >
-          <Hash className="w-4 h-4" /> Private Room
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setMode('vs-ai')}
-          className={`flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-xs font-bold border transition ${
-            mode === 'vs-ai'
-              ? 'bg-amber-400 text-slate-950 border-amber-300 shadow'
-              : 'bg-slate-800/70 text-slate-300 border-slate-700 hover:bg-slate-800'
-          }`}
-        >
-          <Bot className="w-4 h-4" /> Vs Smart AI
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setMode('local')}
-          className={`flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-xs font-bold border transition ${
-            mode === 'local'
-              ? 'bg-amber-400 text-slate-950 border-amber-300 shadow'
-              : 'bg-slate-800/70 text-slate-300 border-slate-700 hover:bg-slate-800'
-          }`}
-        >
-          <Users className="w-4 h-4" /> Pass & Play
-        </button>
-      </div>
-
+      {/* Multiplayer Error Alert */}
       {mpError && (
-        <div className="p-2.5 mb-4 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs text-center font-medium">
+        <div className="rounded-2xl px-4 py-3 bg-rose-500/15 border border-rose-500/40 text-rose-200 text-xs font-semibold text-center">
           {mpError}
         </div>
       )}
 
-      {/* Player Count */}
-      <div className="mb-5">
-        <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-          Players
-        </label>
-        <div className={`grid ${mode === 'online-quick' ? 'grid-cols-2' : 'grid-cols-3'} gap-2`}>
-          {(mode === 'online-quick' ? ([2, 4] as const) : ([2, 3, 4] as const)).map((cnt) => (
-            <button
-              key={cnt}
-              type="button"
-              onClick={() => setPlayerCount(cnt)}
-              className={`py-2.5 rounded-xl text-sm font-bold border transition ${
-                playerCount === cnt
-                  ? 'bg-slate-100 text-slate-950 border-white'
-                  : 'bg-slate-800/60 text-slate-300 border-slate-700'
-              }`}
-            >
-              {cnt} Players
-            </button>
-          ))}
+      {/* Top Bar: Crown/Leaderboard (Left) & Friends + Settings (Right) */}
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => setShowLeaderboard(true)}
+          title="Royale Leaderboard"
+          aria-label="Royale Leaderboard"
+          className="p-2 rounded-full text-[#FACC15] hover:bg-white/5 transition cursor-pointer"
+        >
+          <Crown className="w-7 h-7 fill-[#FACC15]" />
+        </button>
+
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setShowLeaderboard(true)}
+            title="Leaderboard"
+            aria-label="Leaderboard"
+            className="w-11 h-11 rounded-full royale-card flex items-center justify-center text-[#FACC15] hover:border-[#FACC15]/40 transition cursor-pointer"
+          >
+            <Trophy className="w-5 h-5" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowFriendsModal(true)}
+            title="Friends & Chat"
+            aria-label="Friends"
+            className="relative w-11 h-11 rounded-full royale-card flex items-center justify-center text-white/90 hover:text-[#FACC15] transition cursor-pointer"
+          >
+            <Users className="w-5 h-5" />
+            {totalUnread > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#FACC15] text-[#0B0E17] text-[11px] font-extrabold flex items-center justify-center">
+                {totalUnread}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowSettingsModal(true)}
+            title="Profile & Settings"
+            aria-label="Settings"
+            className="w-11 h-11 rounded-full royale-card flex items-center justify-center text-white hover:rotate-45 transition-transform duration-200 cursor-pointer"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
         </div>
       </div>
 
-      {mode === 'online-quick' && (
-        searchingMatch ? (
-          <div className="space-y-2.5">
-            <div className="py-3.5 rounded-2xl bg-slate-950 border border-amber-400/40 flex items-center justify-center gap-2 text-xs font-bold text-amber-300">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Searching for {playerCount}P opponent...
+      {/* Hero Branding: 3D White Die + Gold Orbital Swoosh + Ludo Royale */}
+      <div className="flex flex-col items-center text-center mt-1 mb-1">
+        <div className="relative w-20 h-20 flex items-center justify-center mb-1">
+          <svg
+            viewBox="0 0 100 100"
+            className="absolute inset-0 w-full h-full pointer-events-none"
+          >
+            <path
+              d="M 14 58 C 12 80, 84 82, 88 46"
+              fill="none"
+              stroke="#FACC15"
+              strokeWidth="4.5"
+              strokeLinecap="round"
+            />
+            <polygon points="88,40 82,50 93,49" fill="#FACC15" />
+          </svg>
+
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-white via-slate-100 to-slate-300 shadow-xl border border-white/80 transform -rotate-12 flex flex-col justify-between p-2">
+            <div className="flex justify-between">
+              <span className="w-2 h-2 rounded-full bg-[#0B0E17]" />
+              <span className="w-2 h-2 rounded-full bg-[#0B0E17]" />
+            </div>
+            <div className="flex justify-center">
+              <span className="w-2 h-2 rounded-full bg-[#0B0E17]" />
+            </div>
+            <div className="flex justify-between">
+              <span className="w-2 h-2 rounded-full bg-[#0B0E17]" />
+              <span className="w-2 h-2 rounded-full bg-[#0B0E17]" />
+            </div>
+          </div>
+        </div>
+
+        <h1 className="text-[42px] leading-[0.95] font-black italic tracking-tight">
+          <span className="block text-white drop-shadow">Ludo</span>
+          <span className="block text-[#FACC15] drop-shadow">Royale</span>
+        </h1>
+      </div>
+
+      {/* User Profile & Live Online Status Card */}
+      <div
+        onClick={() => setShowSettingsModal(true)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => e.key === 'Enter' && setShowSettingsModal(true)}
+        className="royale-card rounded-[24px] p-4 flex items-center justify-between cursor-pointer hover:border-white/15 transition"
+      >
+        <div className="flex items-center gap-3.5 min-w-0">
+          <div className="w-14 h-14 rounded-2xl bg-[#0E121D] border border-[#FACC15]/50 flex items-center justify-center shrink-0 shadow-inner">
+            <Crown className="w-7 h-7 text-[#FACC15] fill-[#FACC15]" />
+          </div>
+
+          <div className="min-w-0">
+            <p className="text-white font-bold text-[17px] truncate">
+              {displayName}
+            </p>
+            <div className="flex items-center gap-2 text-sm mt-0.5">
+              <span className="text-[#8B95A8] font-medium">Lvl {level}</span>
+              <span className="text-[#8B95A8]">•</span>
+              <span className="inline-flex items-center gap-1 text-[#FACC15] font-bold">
+                <span className="w-4 h-4 rounded-full bg-[#FACC15]/20 border border-[#FACC15] text-[10px] flex items-center justify-center">
+                  $
+                </span>
+                {coins.toLocaleString()}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className="px-3 py-1.5 rounded-full bg-[#10141F] border border-white/5 flex items-center gap-2">
+            <span
+              className={`w-2.5 h-2.5 rounded-full ${
+                serverConnected
+                  ? 'bg-[#22C55E] shadow-[0_0_8px_#22C55E]'
+                  : 'bg-rose-500'
+              }`}
+            />
+            <span className="text-xs font-semibold text-white">
+              {serverConnected ? `${onlineCount} Online` : 'Offline'}
+            </span>
+          </div>
+          <ChevronRight className="w-4 h-4 text-[#8B95A8]" />
+        </div>
+      </div>
+
+      {/* Mode Action Buttons */}
+      <div className="flex flex-col gap-3">
+        <button
+          type="button"
+          onClick={() => onFindQuickMatch(playerCount)}
+          className="royale-btn-gold w-full h-[60px] rounded-full flex items-center justify-center gap-3 text-[20px] font-extrabold tracking-tight cursor-pointer"
+        >
+          <Play className="w-6 h-6 fill-[#0B0E17] text-[#0B0E17]" />
+          <span>Play Online</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowPrivateModal(true)}
+          className="royale-btn-slate w-full h-[54px] rounded-full flex items-center justify-center gap-2.5 text-[17px] font-bold cursor-pointer"
+        >
+          <Hash className="w-5 h-5 text-white" />
+          <span>Private Room</span>
+        </button>
+
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => onStartOfflineGame('ai', playerCount)}
+            className="royale-btn-slate h-[54px] rounded-full px-4 flex items-center justify-center gap-2 text-[15px] font-bold cursor-pointer"
+          >
+            <Bot className="w-5 h-5 text-white shrink-0" />
+            <span>Vs Smart AI</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onStartOfflineGame('local', playerCount)}
+            className="royale-btn-slate h-[54px] rounded-full px-4 flex items-center justify-center gap-2 text-[15px] font-bold cursor-pointer"
+          >
+            <Users className="w-5 h-5 text-white shrink-0" />
+            <span>Pass &amp; Play</span>
+          </button>
+        </div>
+      </div>
+
+      {/* PLAYERS Divider & 2/4 Player Toggle */}
+      <div className="flex flex-col gap-2.5 mt-1">
+        <div className="flex items-center gap-3">
+          <span className="text-[12px] font-extrabold tracking-wider uppercase text-[#8B95A8]">
+            PLAYERS
+          </span>
+          <div className="h-[1px] flex-1 bg-white/10" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setPlayerCount(2)}
+            className={`h-[50px] rounded-full flex items-center justify-center gap-2 text-[15px] font-extrabold transition cursor-pointer ${
+              playerCount === 2
+                ? 'bg-white text-[#0B0E17] shadow-md'
+                : 'royale-btn-slate text-white/80'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>2 Players</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setPlayerCount(4)}
+            className={`h-[50px] rounded-full flex items-center justify-center gap-2 text-[15px] font-extrabold transition cursor-pointer ${
+              playerCount === 4
+                ? 'bg-white text-[#0B0E17] shadow-md'
+                : 'royale-btn-slate text-white/80'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>4 Players</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Bottom Gold-Outlined CTA */}
+      <button
+        type="button"
+        onClick={() => onFindQuickMatch(playerCount)}
+        className="royale-btn-outline-gold w-full h-[56px] rounded-full mt-1 flex items-center justify-center gap-2.5 text-[17px] font-extrabold cursor-pointer"
+      >
+        <Search className="w-5 h-5" />
+        <span>Find Online Match</span>
+      </button>
+
+      {/* Quick Matchmaking Searching Overlay */}
+      {searchingMatch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-[28px] bg-[#181E2C] border border-[#FACC15]/40 p-6 flex flex-col items-center text-center gap-4 shadow-2xl">
+            <div className="w-16 h-16 rounded-full bg-[#FACC15]/15 border border-[#FACC15]/40 flex items-center justify-center">
+              <Loader2 className="w-8 h-8 text-[#FACC15] animate-spin" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-white">
+                Finding {playerCount}-Player Match
+              </h3>
+              <p className="text-xs text-[#8B95A8] mt-1">
+                Matching you with live players on Royale servers...
+              </p>
             </div>
             <button
               type="button"
               onClick={onCancelQuickMatch}
-              className="w-full py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold uppercase"
+              className="w-full py-3 rounded-full bg-[#10141F] border border-white/10 text-sm font-bold text-white hover:bg-white/10 transition cursor-pointer"
             >
               Cancel Search
-            </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            disabled={!serverConnected}
-            onClick={() => onFindQuickMatch(playerCount === 4 ? 4 : 2)}
-            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 text-slate-950 font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl disabled:opacity-50"
-          >
-            <Globe className="w-5 h-5" /> Find Online Match
-          </button>
-        )
-      )}
-
-      {mode === 'online-private' && (
-        <div className="space-y-3">
-          <button
-            type="button"
-            disabled={!serverConnected}
-            onClick={() => onCreatePrivateRoom(playerCount)}
-            className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-black text-sm uppercase tracking-wider shadow-lg disabled:opacity-50"
-          >
-            Create Private Room
-          </button>
-
-          <div className="flex gap-2">
-            <input
-              type="text"
-              maxLength={6}
-              value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-              placeholder="ENTER CODE"
-              className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm font-bold tracking-widest text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
-            />
-            <button
-              type="button"
-              disabled={!serverConnected || joinCode.trim().length < 4}
-              onClick={() => onJoinPrivateRoom(joinCode)}
-              className="px-4 py-2.5 rounded-xl bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider disabled:opacity-50"
-            >
-              Join
             </button>
           </div>
         </div>
       )}
 
-      {mode === 'vs-ai' && (
-        <>
-          <div className="mb-5">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-              Bot Intelligence
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {(['easy', 'medium', 'hard'] as AIDifficulty[]).map((lvl) => (
-                <button
-                  key={lvl}
-                  type="button"
-                  onClick={() => setDifficulty(lvl)}
-                  className={`py-2 rounded-xl text-xs font-bold uppercase tracking-wider border transition ${
-                    difficulty === lvl
-                      ? 'bg-emerald-400 text-slate-950 border-emerald-300'
-                      : 'bg-slate-800/60 text-slate-300 border-slate-700'
-                  }`}
-                >
-                  {lvl}
-                </button>
-              ))}
+      {/* Private Room Modal / Active Waiting Room */}
+      {(showPrivateModal || Boolean(waitingRoom)) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-[28px] bg-[#0B0E17] border border-white/10 p-5 flex flex-col gap-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-black text-white flex items-center gap-2">
+                <Hash className="w-5 h-5 text-[#FACC15]" />
+                <span>{waitingRoom ? 'Private Waiting Room' : 'Private Room'}</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  if (waitingRoom) onLeaveRoom();
+                  setShowPrivateModal(false);
+                }}
+                aria-label="Close Room Modal"
+                className="w-9 h-9 rounded-full bg-[#181E2C] flex items-center justify-center text-[#8B95A8] hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
+
+            {waitingRoom ? (
+              <div className="space-y-4">
+                <div className="royale-card rounded-2xl p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] font-bold uppercase text-[#8B95A8]">
+                      Room Code
+                    </p>
+                    <p className="text-2xl font-black tracking-widest text-[#FACC15]">
+                      {activeRoomCode}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCopyCode}
+                    className="px-3.5 py-2 rounded-full bg-[#10141F] border border-white/10 text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer"
+                  >
+                    {copiedCode ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-[#22C55E]" />
+                        <span>Copied</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5 text-[#FACC15]" />
+                        <span>Copy</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-[#8B95A8]">
+                    Players ({activeRoomPlayers.length}/{activeRoomMax})
+                  </p>
+                  {activeRoomPlayers.map((p: any, i: number) => (
+                    <div
+                      key={p?.uid || i}
+                      className="px-3.5 py-2.5 rounded-xl bg-[#181E2C] border border-white/5 flex items-center justify-between text-sm font-bold"
+                    >
+                      <span>{p?.username || `Player ${i + 1}`}</span>
+                      <span className="text-xs text-[#22C55E]">Ready</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onLeaveRoom();
+                      setShowPrivateModal(false);
+                    }}
+                    className="flex-1 py-3 rounded-full royale-btn-slate text-sm font-bold cursor-pointer"
+                  >
+                    Leave
+                  </button>
+                  {isRoomHost && (
+                    <button
+                      type="button"
+                      onClick={() => onStartPrivateRoom(activeRoomCode)}
+                      disabled={activeRoomPlayers.length < 2}
+                      className="flex-1 py-3 rounded-full royale-btn-gold text-sm font-extrabold disabled:opacity-50 cursor-pointer"
+                    >
+                      Start Match
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <button
+                  type="button"
+                  onClick={() => onCreatePrivateRoom(playerCount)}
+                  className="w-full py-3.5 rounded-full royale-btn-gold text-sm font-extrabold cursor-pointer"
+                >
+                  Create {playerCount}-Player Room
+                </button>
+
+                <form onSubmit={handleJoinSubmit} className="space-y-2.5">
+                  <label className="block text-xs font-bold text-[#8B95A8]">
+                    Join with Room Code
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={roomCodeInput}
+                      onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
+                      placeholder="ENTER CODE"
+                      maxLength={8}
+                      className="flex-1 px-4 py-3 rounded-full bg-[#181E2C] border border-white/10 text-sm font-bold tracking-widest text-white uppercase focus:outline-none focus:border-[#FACC15]"
+                    />
+                    <button
+                      type="submit"
+                      className="px-5 py-3 rounded-full royale-btn-outline-gold text-sm font-extrabold cursor-pointer"
+                    >
+                      Join
+                    </button>
+                  </div>
+                </form>
+
+                {onlineRooms?.length > 0 && (
+                  <div className="space-y-2 pt-1">
+                    <p className="text-xs font-bold text-[#8B95A8]">
+                      Open Rooms ({onlineRooms.length})
+                    </p>
+                    <div className="max-h-36 overflow-y-auto space-y-1.5">
+                      {onlineRooms.map((room: any, idx: number) => {
+                        const code = room?.code || room?.roomCode;
+                        return (
+                          <div
+                            key={code || idx}
+                            className="px-3.5 py-2 rounded-xl bg-[#181E2C] flex items-center justify-between text-xs"
+                          >
+                            <span className="font-bold text-white">
+                              Room #{code}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => code && onJoinPrivateRoom(code)}
+                              className="px-3 py-1 rounded-full bg-[#FACC15] text-[#0B0E17] font-extrabold cursor-pointer"
+                            >
+                              Join
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={handleOfflineLaunch}
-            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 text-slate-950 font-black text-base flex items-center justify-center gap-2 shadow-xl"
-          >
-            <Play className="w-5 h-5 fill-slate-950" /> START MATCH
-          </button>
-        </>
+        </div>
       )}
 
-      {mode === 'local' && (
-        <button
-          type="button"
-          onClick={handleOfflineLaunch}
-          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 text-slate-950 font-black text-base flex items-center justify-center gap-2 shadow-xl"
-        >
-          <Play className="w-5 h-5 fill-slate-950" /> START PASS & PLAY
-        </button>
+      {/* Friends & Requests Modal */}
+      {showFriendsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md max-h-[85vh] rounded-[28px] bg-[#0B0E17] border border-white/10 p-5 flex flex-col gap-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-black text-white flex items-center gap-2">
+                <Users className="w-5 h-5 text-[#FACC15]" />
+                <span>Friends ({friends?.length || 0})</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  onActiveChatChange(null);
+                  setShowFriendsModal(false);
+                }}
+                aria-label="Close Friends"
+                className="w-9 h-9 rounded-full bg-[#181E2C] flex items-center justify-center text-[#8B95A8] hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleFriendSubmit} className="flex gap-2">
+              <input
+                type="text"
+                value={friendQuery}
+                onChange={(e) => setFriendQuery(e.target.value)}
+                placeholder="Add friend by username..."
+                className="flex-1 px-4 py-2.5 rounded-full bg-[#181E2C] border border-white/10 text-sm text-white focus:outline-none focus:border-[#FACC15]"
+              />
+              <button
+                type="submit"
+                aria-label="Send Friend Request"
+                className="px-4 py-2.5 rounded-full royale-btn-gold text-xs font-extrabold flex items-center gap-1 cursor-pointer"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Add</span>
+              </button>
+            </form>
+
+            <div className="flex-1 overflow-y-auto space-y-2">
+              {incomingRequests?.length > 0 && (
+                <p className="text-xs font-bold text-[#FACC15]">
+                  Pending Requests ({incomingRequests.length})
+                </p>
+              )}
+              {outgoingRequests?.length > 0 && (
+                <p className="text-[11px] text-[#8B95A8]">
+                  Sent Requests: {outgoingRequests.length}
+                </p>
+              )}
+
+              {friends?.length === 0 ? (
+                <p className="py-10 text-center text-xs text-[#8B95A8]">
+                  No friends added yet. Search a username above to connect!
+                </p>
+              ) : (
+                friends.map((friend: any, idx: number) => {
+                  const fUid = friend?.uid || friend?.id || String(idx);
+                  const isOnline = Boolean(presenceMap?.[fUid]?.online || presenceMap?.[fUid]);
+                  const unread = unreadCounts?.[fUid] || 0;
+
+                  return (
+                    <div
+                      key={fUid}
+                      onClick={() => onActiveChatChange(fUid)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && onActiveChatChange(fUid)}
+                      className="px-3.5 py-3 rounded-2xl bg-[#181E2C] border border-white/5 flex items-center justify-between cursor-pointer hover:border-white/15"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span
+                          className={`w-2.5 h-2.5 rounded-full ${
+                            isOnline ? 'bg-[#22C55E]' : 'bg-slate-600'
+                          }`}
+                        />
+                        <span className="text-sm font-bold text-white">
+                          {friend?.username || 'Friend'}
+                        </span>
+                      </div>
+                      {unread > 0 && (
+                        <span className="px-2 py-0.5 rounded-full bg-[#FACC15] text-[#0B0E17] text-[11px] font-extrabold">
+                          {unread}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
       )}
+
+      {/* Profile & Settings Modal */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-[28px] bg-[#0B0E17] border border-white/10 p-5 flex flex-col gap-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-black text-white">Player Profile</h3>
+              <button
+                type="button"
+                onClick={() => setShowSettingsModal(false)}
+                aria-label="Close Profile"
+                className="w-9 h-9 rounded-full bg-[#181E2C] flex items-center justify-center text-[#8B95A8] hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="royale-card rounded-2xl p-4 flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-[#0E121D] border border-[#FACC15]/50 flex items-center justify-center">
+                <Crown className="w-6 h-6 text-[#FACC15] fill-[#FACC15]" />
+              </div>
+              <div>
+                <p className="font-bold text-white">{displayName}</p>
+                <p className="text-xs text-[#8B95A8]">
+                  Level {level} • {coins.toLocaleString()} Coins
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                onUserUpdated({ ...user });
+                setShowSettingsModal(false);
+              }}
+              className="w-full py-3 rounded-full royale-btn-slate text-sm font-bold cursor-pointer"
+            >
+              Sync Profile
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setShowSettingsModal(false);
+                onLogout();
+              }}
+              className="w-full py-3 rounded-full bg-rose-500/15 border border-rose-500/40 text-rose-300 text-sm font-extrabold flex items-center justify-center gap-2 hover:bg-rose-500/25 transition cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Sign Out</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Global Leaderboard Modal */}
+      <LeaderboardModal
+        isOpen={showLeaderboard}
+        onClose={() => setShowLeaderboard(false)}
+        currentUser={{
+          uid: userUid,
+          username: displayName,
+          coins,
+          level,
+        }}
+      />
     </div>
   );
 };
+
+export default LobbyModal;
