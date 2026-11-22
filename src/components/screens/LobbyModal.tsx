@@ -10,17 +10,17 @@ import {
   LogOut,
   Play,
   Search,
+  Send,
   Settings,
   Trophy,
   UserPlus,
   Users,
   X,
 } from 'lucide-react';
-import { UserProfile } from '../../types/auth';
 import { LeaderboardModal } from './LeaderboardModal';
 
 export interface LobbyModalProps {
-  user: UserProfile;
+  user: any;
   onlineCount: number;
   serverConnected: boolean;
   searchingMatch: boolean;
@@ -34,10 +34,10 @@ export interface LobbyModalProps {
   unreadCounts: Record<string, number>;
   pendingInvite: any | null;
   onActiveChatChange: (friendUid: string | null) => void;
-  onAcceptGameInvite: (invite: any) => void;
+  onAcceptInvite: (invite: any) => void;
   onDismissInvite: () => void;
-  onAddFriend: (usernameOrId: string) => Promise<void> | void;
-  onUserUpdated: (updatedUser: UserProfile) => void;
+  onInviteFriend: (friend: any) => Promise<void> | void;
+  onUserUpdated: (updatedUser: any) => void;
   onLogout: () => void;
   onStartOfflineGame: (...args: any[]) => void;
   onFindQuickMatch: (maxPlayers: 2 | 4) => void;
@@ -63,9 +63,9 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
   unreadCounts,
   pendingInvite,
   onActiveChatChange,
-  onAcceptGameInvite,
+  onAcceptInvite,
   onDismissInvite,
-  onAddFriend,
+  onInviteFriend,
   onUserUpdated,
   onLogout,
   onStartOfflineGame,
@@ -127,7 +127,11 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
     e.preventDefault();
     const query = friendQuery.trim();
     if (!query) return;
-    await onAddFriend(query);
+    const matched = friends?.find(
+      (f: any) =>
+        f?.username?.toLowerCase() === query.toLowerCase() || f?.uid === query
+    );
+    await onInviteFriend(matched || { uid: query, username: query });
     setFriendQuery('');
   };
 
@@ -147,7 +151,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
-              onClick={() => onAcceptGameInvite(pendingInvite)}
+              onClick={() => onAcceptInvite(pendingInvite)}
               className="px-3.5 py-1.5 rounded-full royale-btn-gold text-xs font-extrabold cursor-pointer"
             >
               Join
@@ -578,7 +582,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         </div>
       )}
 
-      {/* Friends & Requests Modal */}
+      {/* Friends & Invites Modal */}
       {showFriendsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="w-full max-w-md max-h-[85vh] rounded-[28px] bg-[#0B0E17] border border-white/10 p-5 flex flex-col gap-4 shadow-2xl">
@@ -605,16 +609,16 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                 type="text"
                 value={friendQuery}
                 onChange={(e) => setFriendQuery(e.target.value)}
-                placeholder="Add friend by username..."
+                placeholder="Invite friend by username..."
                 className="flex-1 px-4 py-2.5 rounded-full bg-[#181E2C] border border-white/10 text-sm text-white focus:outline-none focus:border-[#FACC15]"
               />
               <button
                 type="submit"
-                aria-label="Send Friend Request"
+                aria-label="Send Friend Invite"
                 className="px-4 py-2.5 rounded-full royale-btn-gold text-xs font-extrabold flex items-center gap-1 cursor-pointer"
               >
                 <UserPlus className="w-4 h-4" />
-                <span>Add</span>
+                <span>Invite</span>
               </button>
             </form>
 
@@ -632,12 +636,14 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
 
               {friends?.length === 0 ? (
                 <p className="py-10 text-center text-xs text-[#8B95A8]">
-                  No friends added yet. Search a username above to connect!
+                  No friends added yet. Enter a username above to invite!
                 </p>
               ) : (
                 friends.map((friend: any, idx: number) => {
                   const fUid = friend?.uid || friend?.id || String(idx);
-                  const isOnline = Boolean(presenceMap?.[fUid]?.online || presenceMap?.[fUid]);
+                  const isOnline = Boolean(
+                    presenceMap?.[fUid]?.online || presenceMap?.[fUid]
+                  );
                   const unread = unreadCounts?.[fUid] || 0;
 
                   return (
@@ -647,23 +653,36 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                       role="button"
                       tabIndex={0}
                       onKeyDown={(e) => e.key === 'Enter' && onActiveChatChange(fUid)}
-                      className="px-3.5 py-3 rounded-2xl bg-[#181E2C] border border-white/5 flex items-center justify-between cursor-pointer hover:border-white/15"
+                      className="px-3.5 py-3 rounded-2xl bg-[#181E2C] border border-white/5 flex items-center justify-between gap-2 cursor-pointer hover:border-white/15"
                     >
-                      <div className="flex items-center gap-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
                         <span
-                          className={`w-2.5 h-2.5 rounded-full ${
+                          className={`w-2.5 h-2.5 rounded-full shrink-0 ${
                             isOnline ? 'bg-[#22C55E]' : 'bg-slate-600'
                           }`}
                         />
-                        <span className="text-sm font-bold text-white">
+                        <span className="text-sm font-bold text-white truncate">
                           {friend?.username || 'Friend'}
                         </span>
                       </div>
-                      {unread > 0 && (
-                        <span className="px-2 py-0.5 rounded-full bg-[#FACC15] text-[#0B0E17] text-[11px] font-extrabold">
-                          {unread}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {unread > 0 && (
+                          <span className="px-2 py-0.5 rounded-full bg-[#FACC15] text-[#0B0E17] text-[11px] font-extrabold">
+                            {unread}
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onInviteFriend(friend);
+                          }}
+                          className="px-2.5 py-1 rounded-full bg-[#10141F] border border-[#FACC15]/40 text-[#FACC15] text-[11px] font-extrabold flex items-center gap-1 hover:bg-[#FACC15]/15 cursor-pointer"
+                        >
+                          <Send className="w-3 h-3" />
+                          <span>Invite</span>
+                        </button>
+                      </div>
                     </div>
                   );
                 })
