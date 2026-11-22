@@ -105,11 +105,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onAuthenticated }) => 
           <Crown className="w-8 h-8" />
         </div>
         <h1 className="text-2xl font-black tracking-tight text-white">
-          LUDO <span className="text-amber-400">ROYALE</span>
+          <span className="text-amber-400">LUDO</span>
         </h1>
-        <p className="text-xs text-slate-400 mt-1">
-          Cloud-synced coins, rank & match history via Firebase
-        </p>
       </div>
 
       {/* Missing .env Warning */}
