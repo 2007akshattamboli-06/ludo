@@ -1,0 +1,94 @@
+:root {
+  --royale-bg: #0b0e17;
+  --royale-bg-glow: #151c2e;
+  --royale-surface: #181e2c;
+  --royale-surface-hover: #1f2638;
+  --royale-pill-dark: #10141f;
+  --royale-border: rgba(255, 255, 255, 0.07);
+  --royale-gold: #facc15;
+  --royale-gold-deep: #eab308;
+  --royale-text-primary: #ffffff;
+  --royale-text-muted: #8b95a8;
+  --royale-online: #22c55e;
+}
+
+.royale-canvas {
+  background-color: var(--royale-bg);
+  background-image:
+    radial-gradient(circle at 50% 14%, rgba(250, 204, 21, 0.08) 0%, transparent 48%),
+    radial-gradient(circle at 50% 0%, var(--royale-bg-glow) 0%, var(--royale-bg) 75%);
+  color: var(--royale-text-primary);
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Faint 3D dice watermarks in upper corners */
+.royale-canvas::before,
+.royale-canvas::after {
+  content: '';
+  position: absolute;
+  width: 150px;
+  height: 150px;
+  border-radius: 26px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.01));
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.royale-canvas::before {
+  top: 78px;
+  left: -34px;
+  transform: rotate(-18deg);
+}
+
+.royale-canvas::after {
+  top: 38px;
+  right: -28px;
+  transform: rotate(22deg);
+}
+
+.royale-card {
+  background: var(--royale-surface);
+  border: 1px solid var(--royale-border);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+.royale-btn-gold {
+  background: linear-gradient(180deg, #facc15 0%, #eab308 100%);
+  color: #0b0e17;
+  box-shadow: 0 8px 24px rgba(250, 204, 21, 0.22);
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.royale-btn-gold:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.royale-btn-gold:active {
+  transform: scale(0.985);
+}
+
+.royale-btn-slate {
+  background: var(--royale-surface);
+  border: 1px solid var(--royale-border);
+  color: var(--royale-text-primary);
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.royale-btn-slate:hover {
+  background: var(--royale-surface-hover);
+}
+
+.royale-btn-outline-gold {
+  background: rgba(16, 20, 31, 0.85);
+  border: 1.5px solid var(--royale-gold);
+  color: var(--royale-gold);
+  box-shadow: 0 0 20px rgba(250, 204, 21, 0.1);
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.royale-btn-outline-gold:hover {
+  background: rgba(250, 204, 21, 0.1);
+}
