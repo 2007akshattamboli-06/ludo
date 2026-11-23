@@ -12,31 +12,29 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { UserProfile } from '../../types/auth';
-import { FriendProfile, FriendRequestRecord } from '../../types/friends';
 import { GameMode, PlayerConfig } from '../../types/game';
 import { ProfileModal } from './ProfileModal';
 import { FriendsModal } from '../friends/FriendsModal';
 
 export interface LobbyModalProps {
-  user: UserProfile;
+  user: any;
   onlineCount: number;
   serverConnected: boolean;
   searchingMatch: boolean;
   waitingRoom: any | null;
   onlineRooms?: any[];
   mpError: string | null;
-  friends: FriendProfile[];
-  incomingRequests: FriendRequestRecord[];
-  outgoingRequests: FriendRequestRecord[];
-  presenceMap: Record<string, { online: boolean; inGame: boolean }>;
+  friends: any[];
+  incomingRequests: any[];
+  outgoingRequests: any[];
+  presenceMap: Record<string, any>;
   unreadCounts: Record<string, number>;
   pendingInvite: any | null;
   onActiveChatChange: (friendUid: string | null) => void;
   onAcceptInvite: (invite: any) => void;
   onDismissInvite: () => void;
-  onInviteFriend: (friend: FriendProfile) => void;
-  onUserUpdated: (updatedUser: UserProfile) => void;
+  onInviteFriend: (friend: any) => Promise<void> | void;
+  onUserUpdated: (updatedUser: any) => void;
   onLogout: () => void;
   onStartOfflineGame: (configs: PlayerConfig[], mode: GameMode) => void;
   onFindQuickMatch: (maxPlayers: 2 | 4) => void;
@@ -82,11 +80,10 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
   const [roomCodeInput, setRoomCodeInput] = useState('');
   const [copiedCode, setCopiedCode] = useState(false);
 
-  const profileData = user as any;
-  const displayName = profileData?.username || profileData?.displayName || 'Player';
-  const level = typeof profileData?.level === 'number' ? profileData.level : 1;
-  const coins = typeof profileData?.coins === 'number' ? profileData.coins : 1500;
-  const userUid = profileData?.uid || profileData?.id || '';
+  const displayName = user?.username || user?.displayName || 'Player';
+  const level = typeof user?.level === 'number' ? user.level : 1;
+  const coins = typeof user?.coins === 'number' ? user.coins : 1500;
+  const userUid = user?.uid || user?.id || '';
 
   const totalUnread = useMemo(() => {
     const msgUnread = Object.values(unreadCounts || {}).reduce(
@@ -97,13 +94,13 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
   }, [unreadCounts, incomingRequests]);
 
   const activeRoomCode: string =
-    (waitingRoom as any)?.code || (waitingRoom as any)?.roomCode || '';
-  const activeRoomPlayers: any[] = (waitingRoom as any)?.players || [];
-  const activeRoomMax: number = (waitingRoom as any)?.maxPlayers || playerCount;
+    waitingRoom?.code || waitingRoom?.roomCode || '';
+  const activeRoomPlayers: any[] = waitingRoom?.players || [];
+  const activeRoomMax: number = waitingRoom?.maxPlayers || playerCount;
   const isRoomHost =
     !waitingRoom ||
-    (waitingRoom as any)?.hostUid === userUid ||
-    (waitingRoom as any)?.hostId === userUid ||
+    waitingRoom?.hostUid === userUid ||
+    waitingRoom?.hostId === userUid ||
     activeRoomPlayers[0]?.uid === userUid;
 
   const launchOfflineMatch = (mode: GameMode) => {
@@ -173,7 +170,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
               Matchmaking Invite
             </p>
             <p className="text-sm font-bold text-white truncate">
-              {(pendingInvite as any)?.fromUsername || 'A friend'} invited you to play!
+              {pendingInvite?.fromUsername || 'A friend'} invited you to play!
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -401,7 +398,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         </div>
       </div>
 
-      {/* Quick Matchmaking Searching Overlay */}
+      {/* Quick Matchmaking Searching Popup */}
       {searchingMatch && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="w-full max-w-sm rounded-[28px] bg-[#181E2C] border border-[#FACC15]/40 p-6 flex flex-col items-center text-center gap-4 shadow-2xl">
@@ -427,7 +424,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         </div>
       )}
 
-      {/* Private Room Modal / Active Waiting Room */}
+      {/* Private Room Popup / Active Waiting Room */}
       {(showPrivateModal || Boolean(waitingRoom)) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="w-full max-w-md rounded-[28px] bg-[#0B0E17] border border-white/10 p-5 flex flex-col gap-4 shadow-2xl">
@@ -584,38 +581,61 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         </div>
       )}
 
-      {/* Full Friends List, Direct Chat & Matchmaking Invite Modal */}
+      {/* Centered Popup: Friends List, Direct Chat & Matchmaking Invite */}
       {showFriendsModal && (
-        <FriendsModal
-          user={user}
-          friends={friends}
-          incomingRequests={incomingRequests}
-          outgoingRequests={outgoingRequests}
-          presenceMap={presenceMap}
-          unreadCounts={unreadCounts}
-          onActiveChatChange={onActiveChatChange}
-          onClose={() => {
+        <div
+          onClick={() => {
             onActiveChatChange(null);
             setShowFriendsModal(false);
           }}
-          onInviteFriend={(friend) => {
-            onInviteFriend(friend);
-            setShowFriendsModal(false);
-          }}
-        />
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md max-h-[90vh] overflow-y-auto"
+          >
+            <FriendsModal
+              user={user}
+              friends={friends}
+              incomingRequests={incomingRequests}
+              outgoingRequests={outgoingRequests}
+              presenceMap={presenceMap}
+              unreadCounts={unreadCounts}
+              onActiveChatChange={onActiveChatChange}
+              onClose={() => {
+                onActiveChatChange(null);
+                setShowFriendsModal(false);
+              }}
+              onInviteFriend={(friend: any) => {
+                onInviteFriend(friend);
+                setShowFriendsModal(false);
+              }}
+            />
+          </div>
+        </div>
       )}
 
-      {/* Full Player Profile Modal */}
+      {/* Centered Popup: Player Profile & Settings */}
       {showProfileModal && (
-        <ProfileModal
-          user={user}
-          onClose={() => setShowProfileModal(false)}
-          onUserUpdated={onUserUpdated}
-          onLogout={() => {
-            setShowProfileModal(false);
-            onLogout();
-          }}
-        />
+        <div
+          onClick={() => setShowProfileModal(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md max-h-[90vh] overflow-y-auto"
+          >
+            <ProfileModal
+              user={user}
+              onClose={() => setShowProfileModal(false)}
+              onUserUpdated={onUserUpdated}
+              onLogout={() => {
+                setShowProfileModal(false);
+                onLogout();
+              }}
+            />
+          </div>
+        </div>
       )}
     </div>
   );
