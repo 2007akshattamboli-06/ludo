@@ -164,7 +164,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
     <div className="w-full max-w-md flex flex-col gap-5 select-none text-white">
       {/* Incoming Friend Matchmaking Invite Banner */}
       {pendingInvite && (
-        <div className="royale-card rounded-2xl p-3.5 border-[#FACC15]/50 flex items-center justify-between gap-3">
+        <div className="sastra-card rounded-2xl p-3.5 border-[#FACC15]/50 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs font-extrabold text-[#FACC15] uppercase tracking-wider">
               Matchmaking Invite
@@ -177,7 +177,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
             <button
               type="button"
               onClick={() => onAcceptInvite(pendingInvite)}
-              className="px-3.5 py-1.5 rounded-full royale-btn-gold text-xs font-extrabold cursor-pointer"
+              className="px-3.5 py-1.5 rounded-full sastra-btn-gold text-xs font-extrabold cursor-pointer"
             >
               Join
             </button>
@@ -212,7 +212,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
             onClick={() => setShowFriendsModal(true)}
             title="Friends, Chat & Matchmaking"
             aria-label="Friends"
-            className="relative w-11 h-11 rounded-full royale-card flex items-center justify-center text-white/90 hover:text-[#FACC15] transition cursor-pointer"
+            className="relative w-11 h-11 rounded-full sastra-card flex items-center justify-center text-white/90 hover:text-[#FACC15] transition cursor-pointer"
           >
             <Users className="w-5 h-5" />
             {totalUnread > 0 && (
@@ -227,14 +227,14 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
             onClick={() => setShowProfileModal(true)}
             title="Profile & Settings"
             aria-label="Profile"
-            className="w-11 h-11 rounded-full royale-card flex items-center justify-center text-white hover:rotate-45 transition-transform duration-200 cursor-pointer"
+            className="w-11 h-11 rounded-full sastra-card flex items-center justify-center text-white hover:rotate-45 transition-transform duration-200 cursor-pointer"
           >
             <Settings className="w-5 h-5" />
           </button>
         </div>
       </div>
 
-      {/* Hero Branding: 3D White Die + Gold Orbital Swoosh + Ludo Royale */}
+      {/* Hero Branding: 3D White Die + Gold Orbital Swoosh + Ludo Sastra */}
       <div className="flex flex-col items-center text-center mt-1 mb-1">
         <div className="relative w-20 h-20 flex items-center justify-center mb-1">
           <svg
@@ -268,7 +268,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
 
         <h1 className="text-[42px] leading-[0.95] font-black italic tracking-tight">
           <span className="block text-white drop-shadow">Ludo</span>
-          <span className="block text-[#FACC15] drop-shadow">Royale</span>
+          <span className="block text-[#FACC15] drop-shadow">Sastra</span>
         </h1>
       </div>
 
@@ -278,7 +278,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         role="button"
         tabIndex={0}
         onKeyDown={(e) => e.key === 'Enter' && setShowProfileModal(true)}
-        className="royale-card rounded-[24px] p-4 flex items-center justify-between cursor-pointer hover:border-white/15 transition"
+        className="sastra-card rounded-[24px] p-4 flex items-center justify-between cursor-pointer hover:border-white/15 transition"
       >
         <div className="flex items-center gap-3.5 min-w-0">
           <div className="w-14 h-14 rounded-2xl bg-[#0E121D] border border-[#FACC15]/50 flex items-center justify-center shrink-0 shadow-inner">
@@ -324,7 +324,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         <button
           type="button"
           onClick={() => onFindQuickMatch(playerCount)}
-          className="royale-btn-gold w-full h-[60px] rounded-full flex items-center justify-center gap-3 text-[20px] font-extrabold tracking-tight cursor-pointer"
+          className="sastra-btn-gold w-full h-[60px] rounded-full flex items-center justify-center gap-3 text-[20px] font-extrabold tracking-tight cursor-pointer"
         >
           <Play className="w-6 h-6 fill-[#0B0E17] text-[#0B0E17]" />
           <span>Play Online</span>
@@ -333,7 +333,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         <button
           type="button"
           onClick={() => setShowPrivateModal(true)}
-          className="royale-btn-slate w-full h-[54px] rounded-full flex items-center justify-center gap-2.5 text-[17px] font-bold cursor-pointer"
+          className="sastra-btn-slate w-full h-[54px] rounded-full flex items-center justify-center gap-2.5 text-[17px] font-bold cursor-pointer"
         >
           <Hash className="w-5 h-5 text-white" />
           <span>Private Room</span>
@@ -343,7 +343,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
           <button
             type="button"
             onClick={() => launchOfflineMatch('vs-ai')}
-            className="royale-btn-slate h-[54px] rounded-full px-4 flex items-center justify-center gap-2 text-[15px] font-bold cursor-pointer"
+            className="sastra-btn-slate h-[54px] rounded-full px-4 flex items-center justify-center gap-2 text-[15px] font-bold cursor-pointer"
           >
             <Bot className="w-5 h-5 text-white shrink-0" />
             <span>Vs Smart AI</span>
@@ -352,7 +352,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
           <button
             type="button"
             onClick={() => launchOfflineMatch('local')}
-            className="royale-btn-slate h-[54px] rounded-full px-4 flex items-center justify-center gap-2 text-[15px] font-bold cursor-pointer"
+            className="sastra-btn-slate h-[54px] rounded-full px-4 flex items-center justify-center gap-2 text-[15px] font-bold cursor-pointer"
           >
             <Users className="w-5 h-5 text-white shrink-0" />
             <span>Pass &amp; Play</span>
@@ -376,7 +376,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
             className={`h-[50px] rounded-full flex items-center justify-center gap-2 text-[15px] font-extrabold transition cursor-pointer ${
               playerCount === 2
                 ? 'bg-white text-[#0B0E17] shadow-md'
-                : 'royale-btn-slate text-white/80'
+                : 'sastra-btn-slate text-white/80'
             }`}
           >
             <Users className="w-4 h-4" />
@@ -389,7 +389,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
             className={`h-[50px] rounded-full flex items-center justify-center gap-2 text-[15px] font-extrabold transition cursor-pointer ${
               playerCount === 4
                 ? 'bg-white text-[#0B0E17] shadow-md'
-                : 'royale-btn-slate text-white/80'
+                : 'sastra-btn-slate text-white/80'
             }`}
           >
             <Users className="w-4 h-4" />
@@ -410,7 +410,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                 Finding {playerCount}-Player Match
               </h3>
               <p className="text-xs text-[#8B95A8] mt-1">
-                Matching you with live players on Royale servers...
+                Matching you with live players on Sastra servers...
               </p>
             </div>
             <button
@@ -448,7 +448,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
 
             {waitingRoom ? (
               <div className="space-y-4">
-                <div className="royale-card rounded-2xl p-4 flex items-center justify-between">
+                <div className="sastra-card rounded-2xl p-4 flex items-center justify-between">
                   <div>
                     <p className="text-[11px] font-bold uppercase text-[#8B95A8]">
                       Room Code
@@ -498,7 +498,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                       onLeaveRoom();
                       setShowPrivateModal(false);
                     }}
-                    className="flex-1 py-3 rounded-full royale-btn-slate text-sm font-bold cursor-pointer"
+                    className="flex-1 py-3 rounded-full sastra-btn-slate text-sm font-bold cursor-pointer"
                   >
                     Leave
                   </button>
@@ -507,7 +507,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                       type="button"
                       onClick={() => onStartPrivateRoom(activeRoomCode)}
                       disabled={activeRoomPlayers.length < 2}
-                      className="flex-1 py-3 rounded-full royale-btn-gold text-sm font-extrabold disabled:opacity-50 cursor-pointer"
+                      className="flex-1 py-3 rounded-full sastra-btn-gold text-sm font-extrabold disabled:opacity-50 cursor-pointer"
                     >
                       Start Match
                     </button>
@@ -519,7 +519,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                 <button
                   type="button"
                   onClick={() => onCreatePrivateRoom(playerCount)}
-                  className="w-full py-3.5 rounded-full royale-btn-gold text-sm font-extrabold cursor-pointer"
+                  className="w-full py-3.5 rounded-full sastra-btn-gold text-sm font-extrabold cursor-pointer"
                 >
                   Create {playerCount}-Player Room
                 </button>
@@ -539,7 +539,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                     />
                     <button
                       type="submit"
-                      className="px-5 py-3 rounded-full royale-btn-outline-gold text-sm font-extrabold cursor-pointer"
+                      className="px-5 py-3 rounded-full sastra-btn-outline-gold text-sm font-extrabold cursor-pointer"
                     >
                       Join
                     </button>
