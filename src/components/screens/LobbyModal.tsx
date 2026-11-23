@@ -45,6 +45,15 @@ export interface LobbyModalProps {
   onLeaveRoom: () => void;
 }
 
+const CARD_CLASS =
+  'bg-[#161C2A]/95 border border-white/10 shadow-xl backdrop-blur-md';
+const BTN_GOLD_CLASS =
+  'bg-gradient-to-b from-[#FDE047] via-[#FACC15] to-[#EAB308] text-[#0B0E17] shadow-[0_8px_26px_rgba(250,204,21,0.35)] hover:brightness-105 active:scale-[0.99] transition';
+const BTN_SLATE_CLASS =
+  'bg-[#181E2C] border border-white/10 text-white shadow-md hover:bg-[#21293C] hover:border-white/20 active:scale-[0.99] transition';
+const BTN_OUTLINE_GOLD_CLASS =
+  'bg-[#181E2C] border-2 border-[#FACC15] text-[#FACC15] hover:bg-[#FACC15]/10 active:scale-[0.99] transition';
+
 export const LobbyModal: React.FC<LobbyModalProps> = ({
   user,
   onlineCount,
@@ -164,7 +173,9 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
     <div className="w-full max-w-md flex flex-col gap-5 select-none text-white">
       {/* Incoming Friend Matchmaking Invite Banner */}
       {pendingInvite && (
-        <div className="sastra-card rounded-2xl p-3.5 border-[#FACC15]/50 flex items-center justify-between gap-3">
+        <div
+          className={`${CARD_CLASS} rounded-2xl p-3.5 border-[#FACC15]/50 flex items-center justify-between gap-3`}
+        >
           <div className="min-w-0">
             <p className="text-xs font-extrabold text-[#FACC15] uppercase tracking-wider">
               Matchmaking Invite
@@ -177,7 +188,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
             <button
               type="button"
               onClick={() => onAcceptInvite(pendingInvite)}
-              className="px-3.5 py-1.5 rounded-full sastra-btn-gold text-xs font-extrabold cursor-pointer"
+              className={`px-3.5 py-1.5 rounded-full ${BTN_GOLD_CLASS} text-xs font-extrabold cursor-pointer`}
             >
               Join
             </button>
@@ -212,7 +223,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
             onClick={() => setShowFriendsModal(true)}
             title="Friends, Chat & Matchmaking"
             aria-label="Friends"
-            className="relative w-11 h-11 rounded-full sastra-card flex items-center justify-center text-white/90 hover:text-[#FACC15] transition cursor-pointer"
+            className={`relative w-11 h-11 rounded-full ${CARD_CLASS} flex items-center justify-center text-white/90 hover:text-[#FACC15] transition cursor-pointer`}
           >
             <Users className="w-5 h-5" />
             {totalUnread > 0 && (
@@ -227,7 +238,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
             onClick={() => setShowProfileModal(true)}
             title="Profile & Settings"
             aria-label="Profile"
-            className="w-11 h-11 rounded-full sastra-card flex items-center justify-center text-white hover:rotate-45 transition-transform duration-200 cursor-pointer"
+            className={`w-11 h-11 rounded-full ${CARD_CLASS} flex items-center justify-center text-white hover:rotate-45 transition-transform duration-200 cursor-pointer`}
           >
             <Settings className="w-5 h-5" />
           </button>
@@ -278,7 +289,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         role="button"
         tabIndex={0}
         onKeyDown={(e) => e.key === 'Enter' && setShowProfileModal(true)}
-        className="sastra-card rounded-[24px] p-4 flex items-center justify-between cursor-pointer hover:border-white/15 transition"
+        className={`${CARD_CLASS} rounded-[24px] p-4 flex items-center justify-between cursor-pointer hover:border-white/20 transition`}
       >
         <div className="flex items-center gap-3.5 min-w-0">
           <div className="w-14 h-14 rounded-2xl bg-[#0E121D] border border-[#FACC15]/50 flex items-center justify-center shrink-0 shadow-inner">
@@ -303,7 +314,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          <div className="px-3 py-1.5 rounded-full bg-[#10141F] border border-white/5 flex items-center gap-2">
+          <div className="px-3 py-1.5 rounded-full bg-[#10141F] border border-white/10 flex items-center gap-2">
             <span
               className={`w-2.5 h-2.5 rounded-full ${
                 serverConnected
@@ -324,7 +335,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         <button
           type="button"
           onClick={() => onFindQuickMatch(playerCount)}
-          className="sastra-btn-gold w-full h-[60px] rounded-full flex items-center justify-center gap-3 text-[20px] font-extrabold tracking-tight cursor-pointer"
+          className={`${BTN_GOLD_CLASS} w-full h-[60px] rounded-full flex items-center justify-center gap-3 text-[20px] font-extrabold tracking-tight cursor-pointer`}
         >
           <Play className="w-6 h-6 fill-[#0B0E17] text-[#0B0E17]" />
           <span>Play Online</span>
@@ -333,7 +344,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         <button
           type="button"
           onClick={() => setShowPrivateModal(true)}
-          className="sastra-btn-slate w-full h-[54px] rounded-full flex items-center justify-center gap-2.5 text-[17px] font-bold cursor-pointer"
+          className={`${BTN_SLATE_CLASS} w-full h-[54px] rounded-full flex items-center justify-center gap-2.5 text-[17px] font-bold cursor-pointer`}
         >
           <Hash className="w-5 h-5 text-white" />
           <span>Private Room</span>
@@ -343,7 +354,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
           <button
             type="button"
             onClick={() => launchOfflineMatch('vs-ai')}
-            className="sastra-btn-slate h-[54px] rounded-full px-4 flex items-center justify-center gap-2 text-[15px] font-bold cursor-pointer"
+            className={`${BTN_SLATE_CLASS} h-[54px] rounded-full px-4 flex items-center justify-center gap-2 text-[15px] font-bold cursor-pointer`}
           >
             <Bot className="w-5 h-5 text-white shrink-0" />
             <span>Vs Smart AI</span>
@@ -352,7 +363,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
           <button
             type="button"
             onClick={() => launchOfflineMatch('local')}
-            className="sastra-btn-slate h-[54px] rounded-full px-4 flex items-center justify-center gap-2 text-[15px] font-bold cursor-pointer"
+            className={`${BTN_SLATE_CLASS} h-[54px] rounded-full px-4 flex items-center justify-center gap-2 text-[15px] font-bold cursor-pointer`}
           >
             <Users className="w-5 h-5 text-white shrink-0" />
             <span>Pass &amp; Play</span>
@@ -376,7 +387,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
             className={`h-[50px] rounded-full flex items-center justify-center gap-2 text-[15px] font-extrabold transition cursor-pointer ${
               playerCount === 2
                 ? 'bg-white text-[#0B0E17] shadow-md'
-                : 'sastra-btn-slate text-white/80'
+                : `${BTN_SLATE_CLASS} text-white/80`
             }`}
           >
             <Users className="w-4 h-4" />
@@ -389,7 +400,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
             className={`h-[50px] rounded-full flex items-center justify-center gap-2 text-[15px] font-extrabold transition cursor-pointer ${
               playerCount === 4
                 ? 'bg-white text-[#0B0E17] shadow-md'
-                : 'sastra-btn-slate text-white/80'
+                : `${BTN_SLATE_CLASS} text-white/80`
             }`}
           >
             <Users className="w-4 h-4" />
@@ -448,7 +459,9 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
 
             {waitingRoom ? (
               <div className="space-y-4">
-                <div className="sastra-card rounded-2xl p-4 flex items-center justify-between">
+                <div
+                  className={`${CARD_CLASS} rounded-2xl p-4 flex items-center justify-between`}
+                >
                   <div>
                     <p className="text-[11px] font-bold uppercase text-[#8B95A8]">
                       Room Code
@@ -498,7 +511,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                       onLeaveRoom();
                       setShowPrivateModal(false);
                     }}
-                    className="flex-1 py-3 rounded-full sastra-btn-slate text-sm font-bold cursor-pointer"
+                    className={`flex-1 py-3 rounded-full ${BTN_SLATE_CLASS} text-sm font-bold cursor-pointer`}
                   >
                     Leave
                   </button>
@@ -507,7 +520,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                       type="button"
                       onClick={() => onStartPrivateRoom(activeRoomCode)}
                       disabled={activeRoomPlayers.length < 2}
-                      className="flex-1 py-3 rounded-full sastra-btn-gold text-sm font-extrabold disabled:opacity-50 cursor-pointer"
+                      className={`flex-1 py-3 rounded-full ${BTN_GOLD_CLASS} text-sm font-extrabold disabled:opacity-50 cursor-pointer`}
                     >
                       Start Match
                     </button>
@@ -519,7 +532,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                 <button
                   type="button"
                   onClick={() => onCreatePrivateRoom(playerCount)}
-                  className="w-full py-3.5 rounded-full sastra-btn-gold text-sm font-extrabold cursor-pointer"
+                  className={`w-full py-3.5 rounded-full ${BTN_GOLD_CLASS} text-sm font-extrabold cursor-pointer`}
                 >
                   Create {playerCount}-Player Room
                 </button>
@@ -539,7 +552,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                     />
                     <button
                       type="submit"
-                      className="px-5 py-3 rounded-full sastra-btn-outline-gold text-sm font-extrabold cursor-pointer"
+                      className={`px-5 py-3 rounded-full ${BTN_OUTLINE_GOLD_CLASS} text-sm font-extrabold cursor-pointer`}
                     >
                       Join
                     </button>
