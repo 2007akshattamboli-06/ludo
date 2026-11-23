@@ -3,24 +3,25 @@
 @tailwind components;
 @tailwind utilities;
 
-@keyframes dice-tumble {
+@keyframes sastraDiceTumble {
   0% {
-    transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1);
+    transform: perspective(400px) scale(1) rotateX(0deg) rotateY(0deg) rotateZ(0deg);
   }
   25% {
-    transform: rotateX(190deg) rotateY(120deg) rotateZ(45deg) scale(1.16);
+    transform: perspective(400px) scale(1.18) translateY(-6px) rotateX(140deg) rotateY(90deg) rotateZ(-14deg);
   }
-  50% {
-    transform: rotateX(360deg) rotateY(280deg) rotateZ(135deg) scale(1.2);
+  55% {
+    transform: perspective(400px) scale(1.12) translateY(-3px) rotateX(270deg) rotateY(220deg) rotateZ(10deg);
   }
-  75% {
-    transform: rotateX(540deg) rotateY(420deg) rotateZ(225deg) scale(1.12);
+  82% {
+    transform: perspective(400px) scale(1.03) translateY(1px) rotateX(345deg) rotateY(345deg) rotateZ(-3deg);
   }
   100% {
-    transform: rotateX(720deg) rotateY(540deg) rotateZ(360deg) scale(1);
+    transform: perspective(400px) scale(1) translateY(0px) rotateX(360deg) rotateY(360deg) rotateZ(0deg);
   }
 }
 
-.animate-dice-tumble {
-  animation: dice-tumble 0.48s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+.dice-rolling-smooth {
+  animation: sastraDiceTumble var(--dice-duration, 900ms) cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform;
 }

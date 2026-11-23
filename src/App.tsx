@@ -45,6 +45,33 @@ import { FriendsModal } from './components/friends/FriendsModal';
 
 type CoordMap = Map<string, [number, number]>;
 
+const SETTINGS_KEY = 'ludo_sastra_settings';
+
+const readStoredSettings = () => {
+  try {
+    return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+  } catch {
+    return {};
+  }
+};
+
+const getGameSpeedDelays = () => {
+  const saved = readStoredSettings();
+  if (saved.gameSpeed === 'turbo') return { diceMs: 300, moveStepMs: 80 };
+  if (saved.gameSpeed === 'fast') return { diceMs: 550, moveStepMs: 150 };
+  return { diceMs: 900, moveStepMs: 250 };
+};
+
+const triggerHaptic = (pattern: number | number[]) => {
+  const saved = readStoredSettings();
+  if (saved.vibration === false) return;
+  try {
+    navigator.vibrate?.(pattern);
+  } catch {
+    // ignore unsupported environments
+  }
+};
+
 export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState<boolean>(true);
@@ -59,7 +86,12 @@ export default function App() {
   const [validTokens, setValidTokens] = useState<Token[]>([]);
   const [winner, setWinner] = useState<PlayerColor | null>(null);
   const [statusBanner, setStatusBanner] = useState<string>('Roll the dice to begin!');
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+    const saved = readStoredSettings();
+    const initial = saved.soundEffects !== false;
+    soundEngine.enabled = initial;
+    return initial;
+  });
 
   const [serverConnected, setServerConnected] = useState<boolean>(false);
   const [onlineCount, setOnlineCount] = useState<number>(1);
@@ -86,6 +118,18 @@ export default function App() {
   const particlesRef = useRef<Particle[]>([]);
   const recordedRoomRef = useRef<string | null>(null);
   const activeChatFriendUidRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const onSettingsChanged = (e: Event) => {
+      const detail = (e as CustomEvent).detail || readStoredSettings();
+      const nextSound = detail.soundEffects !== false;
+      soundEngine.enabled = nextSound;
+      setSoundEnabled(nextSound);
+    };
+    window.addEventListener('sastra-settings-changed', onSettingsChanged);
+    return () =>
+      window.removeEventListener('sastra-settings-changed', onSettingsChanged);
+  }, []);
 
   useEffect(() => {
     const unsubscribe = authService.subscribeToAuth((profile) => {
@@ -120,8 +164,10 @@ export default function App() {
       friends,
       (counts, newIncoming) => {
         setUnreadCounts(counts);
+        const saved = readStoredSettings();
         if (
           newIncoming &&
+          saved.chatAlerts !== false &&
           activeChatFriendUidRef.current !== newIncoming.friendUid
         ) {
           soundEngine.playChatPing();
@@ -276,16 +322,18 @@ export default function App() {
     };
 
     const onDiceRolled = ({ color, value, tripleSix }: DiceRolledPayload) => {
+      const { diceMs } = getGameSpeedDelays();
+      setDiceValue(value);
       setPhase('ANIMATING_ROLL');
       soundEngine.playDiceRoll();
+      triggerHaptic(30);
       setTimeout(() => {
-        setDiceValue(value);
         if (tripleSix) {
           setStatusBanner('Three 6s in a row! Turn forfeited.');
         } else {
           setStatusBanner(`${PLAYER_THEMES[color].name} rolled ${value}`);
         }
-      }, 460);
+      }, diceMs);
     };
 
     const onTokenMoved = async (payload: TokenMovedPayload) => {
@@ -315,7 +363,7 @@ export default function App() {
           return next;
         });
         soundEngine.playStep(i);
-        await new Promise((r) => setTimeout(r, 105));
+        await new Promise((r) => setTimeout(r, getGameSpeedDelays().moveStepMs));
       }
 
       setAnimatedCoords((prev) => {
@@ -326,6 +374,7 @@ export default function App() {
 
       if (payload.capturedIds.length > 0) {
         soundEngine.playCapture();
+        triggerHaptic([40, 30, 60]);
         const dest = getTokenGridCoords({
           id: payload.tokenId,
           color: payload.color,
@@ -335,6 +384,7 @@ export default function App() {
         spawnBurst(dest[0], dest[1], '#EF4444');
       } else if (payload.reachesHome) {
         soundEngine.playHome();
+        triggerHaptic([30, 40, 30]);
         const dest = getTokenGridCoords({
           id: payload.tokenId,
           color: payload.color,
@@ -518,7 +568,7 @@ export default function App() {
           return next;
         });
         soundEngine.playStep(i);
-        await new Promise((r) => setTimeout(r, 115));
+        await new Promise((r) => setTimeout(r, getGameSpeedDelays().moveStepMs));
       }
 
       const capturedIds = new Set(evaluation.captures.map((c) => c.id));
@@ -537,10 +587,12 @@ export default function App() {
 
       if (evaluation.captures.length > 0) {
         soundEngine.playCapture();
+        triggerHaptic([40, 30, 60]);
         const destCoords = getTokenGridCoords({ ...selectedToken, steps: evaluation.toSteps });
         spawnBurst(destCoords[0], destCoords[1], '#EF4444');
       } else if (evaluation.reachesHome) {
         soundEngine.playHome();
+        triggerHaptic([30, 40, 30]);
         const destCoords = getTokenGridCoords({ ...selectedToken, steps: HOME_GOAL_STEPS });
         spawnBurst(destCoords[0], destCoords[1], '#FBBF24');
       }
@@ -576,13 +628,15 @@ export default function App() {
     }
 
     if (phase !== 'ROLL' || !players) return;
-    setPhase('ANIMATING_ROLL');
-    soundEngine.playDiceRoll();
-
+    const { diceMs } = getGameSpeedDelays();
     const rolled = Math.floor(Math.random() * 6) + 1;
 
+    setDiceValue(rolled);
+    setPhase('ANIMATING_ROLL');
+    soundEngine.playDiceRoll();
+    triggerHaptic(30);
+
     setTimeout(() => {
-      setDiceValue(rolled);
       const nextSixes = rolled === 6 ? consecutiveSixes + 1 : 0;
       setConsecutiveSixes(nextSixes);
 
@@ -610,7 +664,7 @@ export default function App() {
         setPhase('SELECT_TOKEN');
         setStatusBanner(`Rolled ${rolled} — Select a highlighted token`);
       }
-    }, 460);
+    }, diceMs);
   }, [
     advanceOfflineTurn,
     consecutiveSixes,
@@ -643,6 +697,15 @@ export default function App() {
     const next = !soundEnabled;
     soundEngine.enabled = next;
     setSoundEnabled(next);
+    try {
+      const saved = readStoredSettings();
+      localStorage.setItem(
+        SETTINGS_KEY,
+        JSON.stringify({ ...saved, soundEffects: next })
+      );
+    } catch {
+      // ignore storage errors
+    }
   };
 
   if (authLoading) {

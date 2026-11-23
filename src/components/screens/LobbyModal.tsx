@@ -667,7 +667,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         </div>
       )}
 
-      {/* Centered Popup: Game Settings (Sound, Music, Vibration, Alerts, Dice & Token Speed) */}
+      {/* Centered Popup: Game Settings */}
       {showSettingsModal && (
         <div
           onClick={() => setShowSettingsModal(false)}
@@ -942,7 +942,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         </div>
       )}
 
-      {/* Centered Popup: Player Profile (Triggered by Profile Card) */}
+      {/* Centered Popup: Player Profile */}
       {showProfileModal && (
         <div
           onClick={() => setShowProfileModal(false)}
