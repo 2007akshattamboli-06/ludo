@@ -1,6 +1,12 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Particle, PlayerColor, Token } from '../../types/game';
 import { GRID_SIZE } from '../../game/constants/boardConstants';
+import {
+  BOARD_STYLES,
+  BoardStyleId,
+  getStoredCustomization,
+  PawnStyleId,
+} from '../../game/constants/customizationConfig';
 import {
   renderDynamicLayer,
   renderStaticBoard,
@@ -30,6 +36,24 @@ export const LudoBoardCanvas: React.FC<LudoBoardCanvasProps> = ({
   const fgCanvasRef = useRef<HTMLCanvasElement>(null);
   const boardSizeRef = useRef<number>(540);
 
+  const [boardStyle, setBoardStyle] = useState<BoardStyleId>(
+    () => getStoredCustomization().boardStyle
+  );
+  const [pawnStyle, setPawnStyle] = useState<PawnStyleId>(
+    () => getStoredCustomization().pawnStyle
+  );
+
+  useEffect(() => {
+    const syncCustomization = () => {
+      const next = getStoredCustomization();
+      setBoardStyle(next.boardStyle);
+      setPawnStyle(next.pawnStyle);
+    };
+    window.addEventListener('sastra-settings-changed', syncCustomization);
+    return () =>
+      window.removeEventListener('sastra-settings-changed', syncCustomization);
+  }, []);
+
   useEffect(() => {
     const updateSize = () => {
       const container = containerRef.current;
@@ -55,7 +79,7 @@ export const LudoBoardCanvas: React.FC<LudoBoardCanvasProps> = ({
       if (bgCtx) {
         bgCtx.save();
         bgCtx.scale(dpr, dpr);
-        renderStaticBoard(bgCtx, size, perspective);
+        renderStaticBoard(bgCtx, size, perspective, boardStyle);
         bgCtx.restore();
       }
     };
@@ -63,7 +87,7 @@ export const LudoBoardCanvas: React.FC<LudoBoardCanvasProps> = ({
     updateSize();
     window.addEventListener('resize', updateSize);
     return () => window.removeEventListener('resize', updateSize);
-  }, [perspective]);
+  }, [perspective, boardStyle]);
 
   useEffect(() => {
     let rafId: number;
@@ -86,7 +110,8 @@ export const LudoBoardCanvas: React.FC<LudoBoardCanvasProps> = ({
             animatedCoords,
             particles,
             time,
-            perspective
+            perspective,
+            pawnStyle
           );
           ctx.restore();
         }
@@ -96,7 +121,7 @@ export const LudoBoardCanvas: React.FC<LudoBoardCanvasProps> = ({
 
     rafId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafId);
-  }, [tokens, validTokens, animatedCoords, particles, perspective]);
+  }, [tokens, validTokens, animatedCoords, particles, perspective, pawnStyle]);
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (validTokens.length === 0) return;
@@ -127,16 +152,21 @@ export const LudoBoardCanvas: React.FC<LudoBoardCanvasProps> = ({
     }
   };
 
+  const activeBorderClass =
+    BOARD_STYLES[boardStyle]?.borderClass || BOARD_STYLES.classic.borderClass;
+
   return (
     <div
       ref={containerRef}
-      className="relative aspect-square w-full max-w-[560px] mx-auto rounded-2xl overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.65)] border-4 border-amber-400/40 bg-[#FFFDF9]"
+      className={`relative aspect-square w-full max-w-[560px] mx-auto rounded-2xl overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.65)] border-4 ${activeBorderClass}`}
     >
       <canvas ref={bgCanvasRef} className="absolute inset-0 pointer-events-none" />
       <canvas
         ref={fgCanvasRef}
         onClick={handleCanvasClick}
-        className={`relative z-10 block ${validTokens.length > 0 ? 'cursor-pointer' : 'cursor-default'}`}
+        className={`relative z-10 block ${
+          validTokens.length > 0 ? 'cursor-pointer' : 'cursor-default'
+        }`}
       />
     </div>
   );

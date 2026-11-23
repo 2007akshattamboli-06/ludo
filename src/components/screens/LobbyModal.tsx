@@ -11,15 +11,23 @@ import {
   Loader2,
   LogOut,
   Music,
+  Palette,
   Play,
   Settings,
   Smartphone,
+  Sparkles,
   Users,
   Volume2,
   VolumeX,
   X,
 } from 'lucide-react';
 import { GameMode, PlayerConfig } from '../../types/game';
+import {
+  BOARD_STYLES,
+  BoardStyleId,
+  PAWN_STYLES,
+  PawnStyleId,
+} from '../../game/constants/customizationConfig';
 import { ProfileModal } from './ProfileModal';
 import { FriendsModal } from '../friends/FriendsModal';
 
@@ -40,6 +48,8 @@ export interface GameSettings {
   vibration: boolean;
   chatAlerts: boolean;
   gameSpeed: GameSpeedOption;
+  boardStyle: BoardStyleId;
+  pawnStyle: PawnStyleId;
 }
 
 export const SETTINGS_STORAGE_KEY = 'ludo_sastra_settings';
@@ -50,6 +60,8 @@ const DEFAULT_SETTINGS: GameSettings = {
   vibration: true,
   chatAlerts: true,
   gameSpeed: 'normal',
+  boardStyle: 'classic',
+  pawnStyle: 'classic',
 };
 
 const loadStoredSettings = (): GameSettings => {
@@ -100,6 +112,35 @@ const BTN_SLATE_CLASS =
 const BTN_OUTLINE_GOLD_CLASS =
   'bg-[#181E2C] border-2 border-[#FACC15] text-[#FACC15] hover:bg-[#FACC15]/10 active:scale-[0.99] transition';
 
+function PawnPreviewIcon({ styleId }: { styleId: PawnStyleId }) {
+  if (styleId === 'crown') {
+    return (
+      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-rose-400 via-rose-500 to-rose-700 border-2 border-[#FACC15] flex items-center justify-center shadow-md">
+        <Crown className="w-4 h-4 text-[#FEF08A] fill-[#FEF08A]" />
+      </div>
+    );
+  }
+  if (styleId === 'gem') {
+    return (
+      <div className="w-9 h-9 rounded-xl rotate-45 bg-gradient-to-br from-sky-300 via-blue-500 to-indigo-700 border-2 border-white flex items-center justify-center shadow-md">
+        <div className="w-3.5 h-3.5 bg-white/45" />
+      </div>
+    );
+  }
+  if (styleId === 'neon') {
+    return (
+      <div className="w-9 h-9 rounded-full bg-[#090D16] border-[3px] border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.75)] flex items-center justify-center">
+        <span className="w-3 h-3 rounded-full bg-emerald-300" />
+      </div>
+    );
+  }
+  return (
+    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-white via-amber-400 to-amber-600 border-2 border-white flex items-center justify-center shadow-md">
+      <span className="w-4 h-4 rounded-full border border-white/75" />
+    </div>
+  );
+}
+
 export const LobbyModal: React.FC<LobbyModalProps> = ({
   user,
   onlineCount,
@@ -133,6 +174,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
   const [showFriendsModal, setShowFriendsModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showCustomizeModal, setShowCustomizeModal] = useState(false);
   const [settings, setSettings] = useState<GameSettings>(loadStoredSettings);
   const [roomCodeInput, setRoomCodeInput] = useState('');
   const [copiedCode, setCopiedCode] = useState(false);
@@ -165,6 +207,14 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
 
   const setGameSpeed = (gameSpeed: GameSpeedOption) => {
     persistSettings((prev) => ({ ...prev, gameSpeed }));
+  };
+
+  const setBoardStyle = (boardStyle: BoardStyleId) => {
+    persistSettings((prev) => ({ ...prev, boardStyle }));
+  };
+
+  const setPawnStyle = (pawnStyle: PawnStyleId) => {
+    persistSettings((prev) => ({ ...prev, pawnStyle }));
   };
 
   const totalUnread = useMemo(() => {
@@ -284,13 +334,23 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         </div>
       )}
 
-      {/* Top Bar: Crown Logo (Left) & Friends + Game Settings (Right) */}
+      {/* Top Bar: Crown Logo (Left) & Customize + Friends + Settings (Right) */}
       <div className="flex items-center justify-between">
         <div className="p-2 text-[#FACC15]">
           <Crown className="w-7 h-7 fill-[#FACC15]" />
         </div>
 
         <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setShowCustomizeModal(true)}
+            title="Customize Board & Pawns"
+            aria-label="Customize"
+            className={`w-11 h-11 rounded-full ${CARD_CLASS} flex items-center justify-center text-white/90 hover:text-[#FACC15] transition cursor-pointer`}
+          >
+            <Palette className="w-5 h-5" />
+          </button>
+
           <button
             type="button"
             onClick={() => setShowFriendsModal(true)}
@@ -663,6 +723,138 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Centered Popup: Board & Pawn Studio */}
+      {showCustomizeModal && (
+        <div
+          onClick={() => setShowCustomizeModal(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-[28px] bg-[#0B0E17] border border-white/10 p-5 flex flex-col gap-4 shadow-2xl"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-black text-white flex items-center gap-2">
+                <Palette className="w-5 h-5 text-[#FACC15]" />
+                <span>Board &amp; Pawn Studio</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowCustomizeModal(false)}
+                aria-label="Close Customize"
+                className="w-9 h-9 rounded-full bg-[#181E2C] flex items-center justify-center text-[#8B95A8] hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Board Theme Section */}
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-extrabold uppercase tracking-wider text-[#8B95A8] flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-[#FACC15]" />
+                <span>Board Theme</span>
+              </p>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                {(Object.keys(BOARD_STYLES) as BoardStyleId[]).map((bId) => {
+                  const item = BOARD_STYLES[bId];
+                  const active = settings.boardStyle === bId;
+                  return (
+                    <button
+                      key={bId}
+                      type="button"
+                      onClick={() => setBoardStyle(bId)}
+                      className={`p-3 rounded-2xl text-left flex flex-col gap-2 transition cursor-pointer ${
+                        active
+                          ? 'bg-[#1D2538] border-2 border-[#FACC15] shadow-lg'
+                          : `${CARD_CLASS} hover:border-white/25`
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          {item.previewSwatches.map((hex, i) => (
+                            <span
+                              key={i}
+                              className="w-4 h-4 rounded-full border border-white/25 shadow-sm"
+                              style={{ backgroundColor: hex }}
+                            />
+                          ))}
+                        </div>
+                        {active && (
+                          <span className="w-5 h-5 rounded-full bg-[#FACC15] text-[#0B0E17] flex items-center justify-center">
+                            <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-extrabold text-white">
+                          {item.name}
+                        </p>
+                        <p className="text-[11px] text-[#8B95A8] leading-tight">
+                          {item.subtitle}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Pawn Style Section */}
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-extrabold uppercase tracking-wider text-[#8B95A8] flex items-center gap-1.5">
+                <Crown className="w-3.5 h-3.5 text-[#FACC15]" />
+                <span>Pawn Design</span>
+              </p>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                {(Object.keys(PAWN_STYLES) as PawnStyleId[]).map((pId) => {
+                  const item = PAWN_STYLES[pId];
+                  const active = settings.pawnStyle === pId;
+                  return (
+                    <button
+                      key={pId}
+                      type="button"
+                      onClick={() => setPawnStyle(pId)}
+                      className={`p-3 rounded-2xl text-left flex flex-col gap-2.5 transition cursor-pointer ${
+                        active
+                          ? 'bg-[#1D2538] border-2 border-[#FACC15] shadow-lg'
+                          : `${CARD_CLASS} hover:border-white/25`
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <PawnPreviewIcon styleId={pId} />
+                        {active && (
+                          <span className="w-5 h-5 rounded-full bg-[#FACC15] text-[#0B0E17] flex items-center justify-center">
+                            <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-extrabold text-white">
+                          {item.name}
+                        </p>
+                        <p className="text-[11px] text-[#8B95A8] leading-tight">
+                          {item.subtitle}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowCustomizeModal(false)}
+              className={`w-full py-3 rounded-full ${BTN_GOLD_CLASS} text-sm font-extrabold cursor-pointer mt-1`}
+            >
+              Done
+            </button>
           </div>
         </div>
       )}
