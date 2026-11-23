@@ -9,15 +9,13 @@ import {
   Loader2,
   LogOut,
   Play,
-  Search,
   Send,
   Settings,
-  Trophy,
   UserPlus,
   Users,
   X,
 } from 'lucide-react';
-import { LeaderboardModal } from './LeaderboardModal';
+import { GameMode, PlayerConfig } from '../../types/game';
 
 export interface LobbyModalProps {
   user: any;
@@ -39,7 +37,7 @@ export interface LobbyModalProps {
   onInviteFriend: (friend: any) => Promise<void> | void;
   onUserUpdated: (updatedUser: any) => void;
   onLogout: () => void;
-  onStartOfflineGame: (...args: any[]) => void;
+  onStartOfflineGame: (configs: PlayerConfig[], mode: GameMode) => void;
   onFindQuickMatch: (maxPlayers: 2 | 4) => void;
   onCancelQuickMatch: () => void;
   onCreatePrivateRoom: (maxPlayers: 2 | 4) => void;
@@ -77,7 +75,6 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
   onLeaveRoom,
 }) => {
   const [playerCount, setPlayerCount] = useState<2 | 4>(2);
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showPrivateModal, setShowPrivateModal] = useState(false);
   const [showFriendsModal, setShowFriendsModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -108,6 +105,43 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
     (waitingRoom as any)?.hostUid === userUid ||
     (waitingRoom as any)?.hostId === userUid ||
     activeRoomPlayers[0]?.uid === userUid;
+
+  const launchOfflineMatch = (mode: GameMode) => {
+    const isAI = mode === 'vs-ai';
+    const isFourPlayers = playerCount === 4;
+
+    const configs: PlayerConfig[] = [
+      {
+        color: 'red',
+        name: displayName,
+        isAI: false,
+        active: true,
+      },
+      {
+        color: 'green',
+        name: isAI ? 'Smart AI 1' : 'Player 2',
+        isAI,
+        difficulty: isAI ? 'hard' : undefined,
+        active: isFourPlayers,
+      },
+      {
+        color: 'yellow',
+        name: isAI ? (isFourPlayers ? 'Smart AI 2' : 'Smart AI') : isFourPlayers ? 'Player 3' : 'Player 2',
+        isAI,
+        difficulty: isAI ? 'hard' : undefined,
+        active: true,
+      },
+      {
+        color: 'blue',
+        name: isAI ? 'Smart AI 3' : 'Player 4',
+        isAI,
+        difficulty: isAI ? 'hard' : undefined,
+        active: isFourPlayers,
+      },
+    ];
+
+    onStartOfflineGame(configs, mode);
+  };
 
   const handleCopyCode = () => {
     if (!activeRoomCode) return;
@@ -175,29 +209,13 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         </div>
       )}
 
-      {/* Top Bar: Crown/Leaderboard (Left) & Friends + Settings (Right) */}
+      {/* Top Bar: Crown Logo (Left) & Friends + Settings (Right) */}
       <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => setShowLeaderboard(true)}
-          title="Royale Leaderboard"
-          aria-label="Royale Leaderboard"
-          className="p-2 rounded-full text-[#FACC15] hover:bg-white/5 transition cursor-pointer"
-        >
+        <div className="p-2 text-[#FACC15]">
           <Crown className="w-7 h-7 fill-[#FACC15]" />
-        </button>
+        </div>
 
         <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => setShowLeaderboard(true)}
-            title="Leaderboard"
-            aria-label="Leaderboard"
-            className="w-11 h-11 rounded-full royale-card flex items-center justify-center text-[#FACC15] hover:border-[#FACC15]/40 transition cursor-pointer"
-          >
-            <Trophy className="w-5 h-5" />
-          </button>
-
           <button
             type="button"
             onClick={() => setShowFriendsModal(true)}
@@ -333,7 +351,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
-            onClick={() => onStartOfflineGame('ai', playerCount)}
+            onClick={() => launchOfflineMatch('vs-ai')}
             className="royale-btn-slate h-[54px] rounded-full px-4 flex items-center justify-center gap-2 text-[15px] font-bold cursor-pointer"
           >
             <Bot className="w-5 h-5 text-white shrink-0" />
@@ -342,7 +360,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
 
           <button
             type="button"
-            onClick={() => onStartOfflineGame('local', playerCount)}
+            onClick={() => launchOfflineMatch('local')}
             className="royale-btn-slate h-[54px] rounded-full px-4 flex items-center justify-center gap-2 text-[15px] font-bold cursor-pointer"
           >
             <Users className="w-5 h-5 text-white shrink-0" />
@@ -388,16 +406,6 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
           </button>
         </div>
       </div>
-
-      {/* Bottom Gold-Outlined CTA */}
-      <button
-        type="button"
-        onClick={() => onFindQuickMatch(playerCount)}
-        className="royale-btn-outline-gold w-full h-[56px] rounded-full mt-1 flex items-center justify-center gap-2.5 text-[17px] font-extrabold cursor-pointer"
-      >
-        <Search className="w-5 h-5" />
-        <span>Find Online Match</span>
-      </button>
 
       {/* Quick Matchmaking Searching Overlay */}
       {searchingMatch && (
@@ -745,18 +753,6 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
           </div>
         </div>
       )}
-
-      {/* Global Leaderboard Modal */}
-      <LeaderboardModal
-        isOpen={showLeaderboard}
-        onClose={() => setShowLeaderboard(false)}
-        currentUser={{
-          uid: userUid,
-          username: displayName,
-          coins,
-          level,
-        }}
-      />
     </div>
   );
 };
