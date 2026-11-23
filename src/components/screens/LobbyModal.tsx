@@ -7,35 +7,36 @@ import {
   Crown,
   Hash,
   Loader2,
-  LogOut,
   Play,
-  Send,
   Settings,
-  UserPlus,
   Users,
   X,
 } from 'lucide-react';
+import { UserProfile } from '../../types/auth';
+import { FriendProfile, FriendRequestRecord } from '../../types/friends';
 import { GameMode, PlayerConfig } from '../../types/game';
+import { ProfileModal } from './ProfileModal';
+import { FriendsModal } from '../friends/FriendsModal';
 
 export interface LobbyModalProps {
-  user: any;
+  user: UserProfile;
   onlineCount: number;
   serverConnected: boolean;
   searchingMatch: boolean;
   waitingRoom: any | null;
   onlineRooms?: any[];
   mpError: string | null;
-  friends: any[];
-  incomingRequests: any[];
-  outgoingRequests: any[];
-  presenceMap: Record<string, any>;
+  friends: FriendProfile[];
+  incomingRequests: FriendRequestRecord[];
+  outgoingRequests: FriendRequestRecord[];
+  presenceMap: Record<string, { online: boolean; inGame: boolean }>;
   unreadCounts: Record<string, number>;
   pendingInvite: any | null;
   onActiveChatChange: (friendUid: string | null) => void;
   onAcceptInvite: (invite: any) => void;
   onDismissInvite: () => void;
-  onInviteFriend: (friend: any) => Promise<void> | void;
-  onUserUpdated: (updatedUser: any) => void;
+  onInviteFriend: (friend: FriendProfile) => void;
+  onUserUpdated: (updatedUser: UserProfile) => void;
   onLogout: () => void;
   onStartOfflineGame: (configs: PlayerConfig[], mode: GameMode) => void;
   onFindQuickMatch: (maxPlayers: 2 | 4) => void;
@@ -77,9 +78,8 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
   const [playerCount, setPlayerCount] = useState<2 | 4>(2);
   const [showPrivateModal, setShowPrivateModal] = useState(false);
   const [showFriendsModal, setShowFriendsModal] = useState(false);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [roomCodeInput, setRoomCodeInput] = useState('');
-  const [friendQuery, setFriendQuery] = useState('');
   const [copiedCode, setCopiedCode] = useState(false);
 
   const profileData = user as any;
@@ -126,7 +126,13 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
       },
       {
         color: 'yellow',
-        name: isAI ? (isFourPlayers ? 'Smart AI 2' : 'Smart AI') : isFourPlayers ? 'Player 3' : 'Player 2',
+        name: isAI
+          ? isFourPlayers
+            ? 'Smart AI 2'
+            : 'Smart AI'
+          : isFourPlayers
+          ? 'Player 3'
+          : 'Player 2',
         isAI,
         difficulty: isAI ? 'hard' : undefined,
         active: true,
@@ -157,26 +163,14 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
     onJoinPrivateRoom(cleaned);
   };
 
-  const handleFriendSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const query = friendQuery.trim();
-    if (!query) return;
-    const matched = friends?.find(
-      (f: any) =>
-        f?.username?.toLowerCase() === query.toLowerCase() || f?.uid === query
-    );
-    await onInviteFriend(matched || { uid: query, username: query });
-    setFriendQuery('');
-  };
-
   return (
     <div className="w-full max-w-md flex flex-col gap-5 select-none text-white">
-      {/* Incoming Game Invite Banner */}
+      {/* Incoming Friend Matchmaking Invite Banner */}
       {pendingInvite && (
         <div className="royale-card rounded-2xl p-3.5 border-[#FACC15]/50 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs font-extrabold text-[#FACC15] uppercase tracking-wider">
-              Game Invite
+              Matchmaking Invite
             </p>
             <p className="text-sm font-bold text-white truncate">
               {(pendingInvite as any)?.fromUsername || 'A friend'} invited you to play!
@@ -209,7 +203,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         </div>
       )}
 
-      {/* Top Bar: Crown Logo (Left) & Friends + Settings (Right) */}
+      {/* Top Bar: Crown Logo (Left) & Friends + Profile/Settings (Right) */}
       <div className="flex items-center justify-between">
         <div className="p-2 text-[#FACC15]">
           <Crown className="w-7 h-7 fill-[#FACC15]" />
@@ -219,7 +213,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
           <button
             type="button"
             onClick={() => setShowFriendsModal(true)}
-            title="Friends & Chat"
+            title="Friends, Chat & Matchmaking"
             aria-label="Friends"
             className="relative w-11 h-11 rounded-full royale-card flex items-center justify-center text-white/90 hover:text-[#FACC15] transition cursor-pointer"
           >
@@ -233,9 +227,9 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
 
           <button
             type="button"
-            onClick={() => setShowSettingsModal(true)}
+            onClick={() => setShowProfileModal(true)}
             title="Profile & Settings"
-            aria-label="Settings"
+            aria-label="Profile"
             className="w-11 h-11 rounded-full royale-card flex items-center justify-center text-white hover:rotate-45 transition-transform duration-200 cursor-pointer"
           >
             <Settings className="w-5 h-5" />
@@ -283,10 +277,10 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
 
       {/* User Profile & Live Online Status Card */}
       <div
-        onClick={() => setShowSettingsModal(true)}
+        onClick={() => setShowProfileModal(true)}
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => e.key === 'Enter' && setShowSettingsModal(true)}
+        onKeyDown={(e) => e.key === 'Enter' && setShowProfileModal(true)}
         className="royale-card rounded-[24px] p-4 flex items-center justify-between cursor-pointer hover:border-white/15 transition"
       >
         <div className="flex items-center gap-3.5 min-w-0">
@@ -590,168 +584,38 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         </div>
       )}
 
-      {/* Friends & Invites Modal */}
+      {/* Full Friends List, Direct Chat & Matchmaking Invite Modal */}
       {showFriendsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md max-h-[85vh] rounded-[28px] bg-[#0B0E17] border border-white/10 p-5 flex flex-col gap-4 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-black text-white flex items-center gap-2">
-                <Users className="w-5 h-5 text-[#FACC15]" />
-                <span>Friends ({friends?.length || 0})</span>
-              </h3>
-              <button
-                type="button"
-                onClick={() => {
-                  onActiveChatChange(null);
-                  setShowFriendsModal(false);
-                }}
-                aria-label="Close Friends"
-                className="w-9 h-9 rounded-full bg-[#181E2C] flex items-center justify-center text-[#8B95A8] hover:text-white cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleFriendSubmit} className="flex gap-2">
-              <input
-                type="text"
-                value={friendQuery}
-                onChange={(e) => setFriendQuery(e.target.value)}
-                placeholder="Invite friend by username..."
-                className="flex-1 px-4 py-2.5 rounded-full bg-[#181E2C] border border-white/10 text-sm text-white focus:outline-none focus:border-[#FACC15]"
-              />
-              <button
-                type="submit"
-                aria-label="Send Friend Invite"
-                className="px-4 py-2.5 rounded-full royale-btn-gold text-xs font-extrabold flex items-center gap-1 cursor-pointer"
-              >
-                <UserPlus className="w-4 h-4" />
-                <span>Invite</span>
-              </button>
-            </form>
-
-            <div className="flex-1 overflow-y-auto space-y-2">
-              {incomingRequests?.length > 0 && (
-                <p className="text-xs font-bold text-[#FACC15]">
-                  Pending Requests ({incomingRequests.length})
-                </p>
-              )}
-              {outgoingRequests?.length > 0 && (
-                <p className="text-[11px] text-[#8B95A8]">
-                  Sent Requests: {outgoingRequests.length}
-                </p>
-              )}
-
-              {friends?.length === 0 ? (
-                <p className="py-10 text-center text-xs text-[#8B95A8]">
-                  No friends added yet. Enter a username above to invite!
-                </p>
-              ) : (
-                friends.map((friend: any, idx: number) => {
-                  const fUid = friend?.uid || friend?.id || String(idx);
-                  const isOnline = Boolean(
-                    presenceMap?.[fUid]?.online || presenceMap?.[fUid]
-                  );
-                  const unread = unreadCounts?.[fUid] || 0;
-
-                  return (
-                    <div
-                      key={fUid}
-                      onClick={() => onActiveChatChange(fUid)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && onActiveChatChange(fUid)}
-                      className="px-3.5 py-3 rounded-2xl bg-[#181E2C] border border-white/5 flex items-center justify-between gap-2 cursor-pointer hover:border-white/15"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span
-                          className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                            isOnline ? 'bg-[#22C55E]' : 'bg-slate-600'
-                          }`}
-                        />
-                        <span className="text-sm font-bold text-white truncate">
-                          {friend?.username || 'Friend'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {unread > 0 && (
-                          <span className="px-2 py-0.5 rounded-full bg-[#FACC15] text-[#0B0E17] text-[11px] font-extrabold">
-                            {unread}
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onInviteFriend(friend);
-                          }}
-                          className="px-2.5 py-1 rounded-full bg-[#10141F] border border-[#FACC15]/40 text-[#FACC15] text-[11px] font-extrabold flex items-center gap-1 hover:bg-[#FACC15]/15 cursor-pointer"
-                        >
-                          <Send className="w-3 h-3" />
-                          <span>Invite</span>
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </div>
+        <FriendsModal
+          user={user}
+          friends={friends}
+          incomingRequests={incomingRequests}
+          outgoingRequests={outgoingRequests}
+          presenceMap={presenceMap}
+          unreadCounts={unreadCounts}
+          onActiveChatChange={onActiveChatChange}
+          onClose={() => {
+            onActiveChatChange(null);
+            setShowFriendsModal(false);
+          }}
+          onInviteFriend={(friend) => {
+            onInviteFriend(friend);
+            setShowFriendsModal(false);
+          }}
+        />
       )}
 
-      {/* Profile & Settings Modal */}
-      {showSettingsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-sm rounded-[28px] bg-[#0B0E17] border border-white/10 p-5 flex flex-col gap-4 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-black text-white">Player Profile</h3>
-              <button
-                type="button"
-                onClick={() => setShowSettingsModal(false)}
-                aria-label="Close Profile"
-                className="w-9 h-9 rounded-full bg-[#181E2C] flex items-center justify-center text-[#8B95A8] hover:text-white cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="royale-card rounded-2xl p-4 flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-[#0E121D] border border-[#FACC15]/50 flex items-center justify-center">
-                <Crown className="w-6 h-6 text-[#FACC15] fill-[#FACC15]" />
-              </div>
-              <div>
-                <p className="font-bold text-white">{displayName}</p>
-                <p className="text-xs text-[#8B95A8]">
-                  Level {level} • {coins.toLocaleString()} Coins
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                onUserUpdated({ ...user });
-                setShowSettingsModal(false);
-              }}
-              className="w-full py-3 rounded-full royale-btn-slate text-sm font-bold cursor-pointer"
-            >
-              Sync Profile
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setShowSettingsModal(false);
-                onLogout();
-              }}
-              className="w-full py-3 rounded-full bg-rose-500/15 border border-rose-500/40 text-rose-300 text-sm font-extrabold flex items-center justify-center gap-2 hover:bg-rose-500/25 transition cursor-pointer"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Sign Out</span>
-            </button>
-          </div>
-        </div>
+      {/* Full Player Profile Modal */}
+      {showProfileModal && (
+        <ProfileModal
+          user={user}
+          onClose={() => setShowProfileModal(false)}
+          onUserUpdated={onUserUpdated}
+          onLogout={() => {
+            setShowProfileModal(false);
+            onLogout();
+          }}
+        />
       )}
     </div>
   );
