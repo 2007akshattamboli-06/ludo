@@ -7,7 +7,7 @@ import {
   hasPlayerWon,
 } from './gameEngine.js';
 
-const TURN_DURATION_MS = 20000;
+const TURN_DURATION_MS = 100000;
 
 export class RoomManager {
   constructor(io) {
