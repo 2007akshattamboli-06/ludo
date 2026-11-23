@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
+  Bell,
   Bot,
   Check,
   ChevronRight,
@@ -7,9 +8,14 @@ import {
   Crown,
   Hash,
   Loader2,
+  LogOut,
+  Music,
   Play,
   Settings,
+  Smartphone,
   Users,
+  Volume2,
+  VolumeX,
   X,
 } from 'lucide-react';
 import { GameMode, PlayerConfig } from '../../types/game';
@@ -44,6 +50,32 @@ export interface LobbyModalProps {
   onStartPrivateRoom: (code: string) => void;
   onLeaveRoom: () => void;
 }
+
+interface GameSettings {
+  soundEffects: boolean;
+  backgroundMusic: boolean;
+  vibration: boolean;
+  chatAlerts: boolean;
+}
+
+const SETTINGS_STORAGE_KEY = 'ludo_sastra_settings';
+
+const DEFAULT_SETTINGS: GameSettings = {
+  soundEffects: true,
+  backgroundMusic: true,
+  vibration: true,
+  chatAlerts: true,
+};
+
+const loadStoredSettings = (): GameSettings => {
+  try {
+    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (!raw) return DEFAULT_SETTINGS;
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+};
 
 const CARD_CLASS =
   'bg-[#161C2A]/95 border border-white/10 shadow-xl backdrop-blur-md';
@@ -86,6 +118,8 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
   const [showPrivateModal, setShowPrivateModal] = useState(false);
   const [showFriendsModal, setShowFriendsModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [settings, setSettings] = useState<GameSettings>(loadStoredSettings);
   const [roomCodeInput, setRoomCodeInput] = useState('');
   const [copiedCode, setCopiedCode] = useState(false);
 
@@ -93,6 +127,21 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
   const level = typeof user?.level === 'number' ? user.level : 1;
   const coins = typeof user?.coins === 'number' ? user.coins : 1500;
   const userUid = user?.uid || user?.id || '';
+
+  const toggleSetting = (key: keyof GameSettings) => {
+    setSettings((prev) => {
+      const updated = { ...prev, [key]: !prev[key] };
+      try {
+        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(updated));
+        window.dispatchEvent(
+          new CustomEvent('sastra-settings-changed', { detail: updated })
+        );
+      } catch {
+        // ignore storage errors
+      }
+      return updated;
+    });
+  };
 
   const totalUnread = useMemo(() => {
     const msgUnread = Object.values(unreadCounts || {}).reduce(
@@ -211,7 +260,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         </div>
       )}
 
-      {/* Top Bar: Crown Logo (Left) & Friends + Profile/Settings (Right) */}
+      {/* Top Bar: Crown Logo (Left) & Friends + Game Settings (Right) */}
       <div className="flex items-center justify-between">
         <div className="p-2 text-[#FACC15]">
           <Crown className="w-7 h-7 fill-[#FACC15]" />
@@ -235,10 +284,10 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
 
           <button
             type="button"
-            onClick={() => setShowProfileModal(true)}
-            title="Profile & Settings"
-            aria-label="Profile"
-            className={`w-11 h-11 rounded-full ${CARD_CLASS} flex items-center justify-center text-white hover:rotate-45 transition-transform duration-200 cursor-pointer`}
+            onClick={() => setShowSettingsModal(true)}
+            title="Game Settings"
+            aria-label="Settings"
+            className={`w-11 h-11 rounded-full ${CARD_CLASS} flex items-center justify-center text-white hover:text-[#FACC15] hover:rotate-45 transition-all duration-200 cursor-pointer`}
           >
             <Settings className="w-5 h-5" />
           </button>
@@ -283,7 +332,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         </h1>
       </div>
 
-      {/* User Profile & Live Online Status Card */}
+      {/* User Profile & Live Online Status Card (Opens Player Profile) */}
       <div
         onClick={() => setShowProfileModal(true)}
         role="button"
@@ -594,6 +643,192 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         </div>
       )}
 
+      {/* Centered Popup: Game Settings (Sound, Music, Vibration, Alerts) */}
+      {showSettingsModal && (
+        <div
+          onClick={() => setShowSettingsModal(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm rounded-[28px] bg-[#0B0E17] border border-white/10 p-5 flex flex-col gap-4 shadow-2xl"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-black text-white flex items-center gap-2">
+                <Settings className="w-5 h-5 text-[#FACC15]" />
+                <span>Game Settings</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowSettingsModal(false)}
+                aria-label="Close Settings"
+                className="w-9 h-9 rounded-full bg-[#181E2C] flex items-center justify-center text-[#8B95A8] hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2.5">
+              {/* Sound Effects Toggle */}
+              <button
+                type="button"
+                onClick={() => toggleSetting('soundEffects')}
+                className={`${CARD_CLASS} rounded-2xl px-4 py-3.5 flex items-center justify-between cursor-pointer hover:border-white/20`}
+              >
+                <div className="flex items-center gap-3 text-left">
+                  <div className="w-10 h-10 rounded-xl bg-[#10141F] border border-white/5 flex items-center justify-center text-[#FACC15]">
+                    {settings.soundEffects ? (
+                      <Volume2 className="w-5 h-5" />
+                    ) : (
+                      <VolumeX className="w-5 h-5 text-[#8B95A8]" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-white">Sound Effects</p>
+                    <p className="text-[11px] text-[#8B95A8]">
+                      Dice roll, capture &amp; win SFX
+                    </p>
+                  </div>
+                </div>
+                <span
+                  className={`w-12 h-7 rounded-full p-1 flex items-center transition-colors ${
+                    settings.soundEffects ? 'bg-[#FACC15]' : 'bg-[#10141F] border border-white/10'
+                  }`}
+                >
+                  <span
+                    className={`w-5 h-5 rounded-full transition-transform ${
+                      settings.soundEffects
+                        ? 'translate-x-5 bg-[#0B0E17]'
+                        : 'translate-x-0 bg-[#8B95A8]'
+                    }`}
+                  />
+                </span>
+              </button>
+
+              {/* Background Music Toggle */}
+              <button
+                type="button"
+                onClick={() => toggleSetting('backgroundMusic')}
+                className={`${CARD_CLASS} rounded-2xl px-4 py-3.5 flex items-center justify-between cursor-pointer hover:border-white/20`}
+              >
+                <div className="flex items-center gap-3 text-left">
+                  <div className="w-10 h-10 rounded-xl bg-[#10141F] border border-white/5 flex items-center justify-center text-[#FACC15]">
+                    <Music
+                      className={`w-5 h-5 ${
+                        settings.backgroundMusic ? 'text-[#FACC15]' : 'text-[#8B95A8]'
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-white">Background Music</p>
+                    <p className="text-[11px] text-[#8B95A8]">
+                      Lobby &amp; board theme audio
+                    </p>
+                  </div>
+                </div>
+                <span
+                  className={`w-12 h-7 rounded-full p-1 flex items-center transition-colors ${
+                    settings.backgroundMusic ? 'bg-[#FACC15]' : 'bg-[#10141F] border border-white/10'
+                  }`}
+                >
+                  <span
+                    className={`w-5 h-5 rounded-full transition-transform ${
+                      settings.backgroundMusic
+                        ? 'translate-x-5 bg-[#0B0E17]'
+                        : 'translate-x-0 bg-[#8B95A8]'
+                    }`}
+                  />
+                </span>
+              </button>
+
+              {/* Vibration / Haptics Toggle */}
+              <button
+                type="button"
+                onClick={() => toggleSetting('vibration')}
+                className={`${CARD_CLASS} rounded-2xl px-4 py-3.5 flex items-center justify-between cursor-pointer hover:border-white/20`}
+              >
+                <div className="flex items-center gap-3 text-left">
+                  <div className="w-10 h-10 rounded-xl bg-[#10141F] border border-white/5 flex items-center justify-center">
+                    <Smartphone
+                      className={`w-5 h-5 ${
+                        settings.vibration ? 'text-[#FACC15]' : 'text-[#8B95A8]'
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-white">Vibration</p>
+                    <p className="text-[11px] text-[#8B95A8]">
+                      Haptic feedback on turns &amp; hits
+                    </p>
+                  </div>
+                </div>
+                <span
+                  className={`w-12 h-7 rounded-full p-1 flex items-center transition-colors ${
+                    settings.vibration ? 'bg-[#FACC15]' : 'bg-[#10141F] border border-white/10'
+                  }`}
+                >
+                  <span
+                    className={`w-5 h-5 rounded-full transition-transform ${
+                      settings.vibration
+                        ? 'translate-x-5 bg-[#0B0E17]'
+                        : 'translate-x-0 bg-[#8B95A8]'
+                    }`}
+                  />
+                </span>
+              </button>
+
+              {/* Friend & Invite Alerts Toggle */}
+              <button
+                type="button"
+                onClick={() => toggleSetting('chatAlerts')}
+                className={`${CARD_CLASS} rounded-2xl px-4 py-3.5 flex items-center justify-between cursor-pointer hover:border-white/20`}
+              >
+                <div className="flex items-center gap-3 text-left">
+                  <div className="w-10 h-10 rounded-xl bg-[#10141F] border border-white/5 flex items-center justify-center">
+                    <Bell
+                      className={`w-5 h-5 ${
+                        settings.chatAlerts ? 'text-[#FACC15]' : 'text-[#8B95A8]'
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-white">Chat &amp; Invite Alerts</p>
+                    <p className="text-[11px] text-[#8B95A8]">
+                      Notify on messages &amp; match invites
+                    </p>
+                  </div>
+                </div>
+                <span
+                  className={`w-12 h-7 rounded-full p-1 flex items-center transition-colors ${
+                    settings.chatAlerts ? 'bg-[#FACC15]' : 'bg-[#10141F] border border-white/10'
+                  }`}
+                >
+                  <span
+                    className={`w-5 h-5 rounded-full transition-transform ${
+                      settings.chatAlerts
+                        ? 'translate-x-5 bg-[#0B0E17]'
+                        : 'translate-x-0 bg-[#8B95A8]'
+                    }`}
+                  />
+                </span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setShowSettingsModal(false);
+                onLogout();
+              }}
+              className="w-full py-3 rounded-full bg-rose-500/15 border border-rose-500/40 text-rose-300 text-sm font-extrabold flex items-center justify-center gap-2 hover:bg-rose-500/25 transition cursor-pointer mt-1"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Sign Out</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Centered Popup: Friends List, Direct Chat & Matchmaking Invite */}
       {showFriendsModal && (
         <div
@@ -628,7 +863,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         </div>
       )}
 
-      {/* Centered Popup: Player Profile & Settings */}
+      {/* Centered Popup: Player Profile (Triggered by Profile Card) */}
       {showProfileModal && (
         <div
           onClick={() => setShowProfileModal(false)}
