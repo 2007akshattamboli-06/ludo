@@ -29,9 +29,9 @@ export const GAME_SPEED_CONFIG: Record<
   GameSpeedOption,
   { label: string; diceMs: number; moveStepMs: number }
 > = {
-  normal: { label: 'Normal', diceMs: 600, moveStepMs: 160 },
-  fast: { label: 'Fast', diceMs: 350, moveStepMs: 95 },
-  turbo: { label: 'Turbo', diceMs: 180, moveStepMs: 45 },
+  normal: { label: 'Normal', diceMs: 900, moveStepMs: 250 },
+  fast: { label: 'Fast', diceMs: 550, moveStepMs: 150 },
+  turbo: { label: 'Turbo', diceMs: 300, moveStepMs: 80 },
 };
 
 export interface GameSettings {
