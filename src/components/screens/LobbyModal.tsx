@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Copy,
   Crown,
+  Gauge,
   Hash,
   Loader2,
   LogOut,
@@ -21,6 +22,45 @@ import {
 import { GameMode, PlayerConfig } from '../../types/game';
 import { ProfileModal } from './ProfileModal';
 import { FriendsModal } from '../friends/FriendsModal';
+
+export type GameSpeedOption = 'normal' | 'fast' | 'turbo';
+
+export const GAME_SPEED_CONFIG: Record<
+  GameSpeedOption,
+  { label: string; diceMs: number; moveStepMs: number }
+> = {
+  normal: { label: 'Normal', diceMs: 600, moveStepMs: 160 },
+  fast: { label: 'Fast', diceMs: 350, moveStepMs: 95 },
+  turbo: { label: 'Turbo', diceMs: 180, moveStepMs: 45 },
+};
+
+export interface GameSettings {
+  soundEffects: boolean;
+  backgroundMusic: boolean;
+  vibration: boolean;
+  chatAlerts: boolean;
+  gameSpeed: GameSpeedOption;
+}
+
+export const SETTINGS_STORAGE_KEY = 'ludo_sastra_settings';
+
+const DEFAULT_SETTINGS: GameSettings = {
+  soundEffects: true,
+  backgroundMusic: true,
+  vibration: true,
+  chatAlerts: true,
+  gameSpeed: 'normal',
+};
+
+const loadStoredSettings = (): GameSettings => {
+  try {
+    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (!raw) return DEFAULT_SETTINGS;
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+};
 
 export interface LobbyModalProps {
   user: any;
@@ -50,32 +90,6 @@ export interface LobbyModalProps {
   onStartPrivateRoom: (code: string) => void;
   onLeaveRoom: () => void;
 }
-
-interface GameSettings {
-  soundEffects: boolean;
-  backgroundMusic: boolean;
-  vibration: boolean;
-  chatAlerts: boolean;
-}
-
-const SETTINGS_STORAGE_KEY = 'ludo_sastra_settings';
-
-const DEFAULT_SETTINGS: GameSettings = {
-  soundEffects: true,
-  backgroundMusic: true,
-  vibration: true,
-  chatAlerts: true,
-};
-
-const loadStoredSettings = (): GameSettings => {
-  try {
-    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
-    if (!raw) return DEFAULT_SETTINGS;
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
-  } catch {
-    return DEFAULT_SETTINGS;
-  }
-};
 
 const CARD_CLASS =
   'bg-[#161C2A]/95 border border-white/10 shadow-xl backdrop-blur-md';
@@ -128,9 +142,9 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
   const coins = typeof user?.coins === 'number' ? user.coins : 1500;
   const userUid = user?.uid || user?.id || '';
 
-  const toggleSetting = (key: keyof GameSettings) => {
+  const persistSettings = (updater: (prev: GameSettings) => GameSettings) => {
     setSettings((prev) => {
-      const updated = { ...prev, [key]: !prev[key] };
+      const updated = updater(prev);
       try {
         localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(updated));
         window.dispatchEvent(
@@ -141,6 +155,16 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
       }
       return updated;
     });
+  };
+
+  const toggleSetting = (
+    key: 'soundEffects' | 'backgroundMusic' | 'vibration' | 'chatAlerts'
+  ) => {
+    persistSettings((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const setGameSpeed = (gameSpeed: GameSpeedOption) => {
+    persistSettings((prev) => ({ ...prev, gameSpeed }));
   };
 
   const totalUnread = useMemo(() => {
@@ -643,7 +667,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         </div>
       )}
 
-      {/* Centered Popup: Game Settings (Sound, Music, Vibration, Alerts) */}
+      {/* Centered Popup: Game Settings (Sound, Music, Vibration, Alerts, Dice & Token Speed) */}
       {showSettingsModal && (
         <div
           onClick={() => setShowSettingsModal(false)}
@@ -651,7 +675,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm rounded-[28px] bg-[#0B0E17] border border-white/10 p-5 flex flex-col gap-4 shadow-2xl"
+            className="w-full max-w-sm max-h-[90vh] overflow-y-auto rounded-[28px] bg-[#0B0E17] border border-white/10 p-5 flex flex-col gap-3.5 shadow-2xl"
           >
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-black text-white flex items-center gap-2">
@@ -673,7 +697,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
               <button
                 type="button"
                 onClick={() => toggleSetting('soundEffects')}
-                className={`${CARD_CLASS} rounded-2xl px-4 py-3.5 flex items-center justify-between cursor-pointer hover:border-white/20`}
+                className={`${CARD_CLASS} rounded-2xl px-4 py-3 flex items-center justify-between cursor-pointer hover:border-white/20`}
               >
                 <div className="flex items-center gap-3 text-left">
                   <div className="w-10 h-10 rounded-xl bg-[#10141F] border border-white/5 flex items-center justify-center text-[#FACC15]">
@@ -692,7 +716,9 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                 </div>
                 <span
                   className={`w-12 h-7 rounded-full p-1 flex items-center transition-colors ${
-                    settings.soundEffects ? 'bg-[#FACC15]' : 'bg-[#10141F] border border-white/10'
+                    settings.soundEffects
+                      ? 'bg-[#FACC15]'
+                      : 'bg-[#10141F] border border-white/10'
                   }`}
                 >
                   <span
@@ -709,13 +735,15 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
               <button
                 type="button"
                 onClick={() => toggleSetting('backgroundMusic')}
-                className={`${CARD_CLASS} rounded-2xl px-4 py-3.5 flex items-center justify-between cursor-pointer hover:border-white/20`}
+                className={`${CARD_CLASS} rounded-2xl px-4 py-3 flex items-center justify-between cursor-pointer hover:border-white/20`}
               >
                 <div className="flex items-center gap-3 text-left">
-                  <div className="w-10 h-10 rounded-xl bg-[#10141F] border border-white/5 flex items-center justify-center text-[#FACC15]">
+                  <div className="w-10 h-10 rounded-xl bg-[#10141F] border border-white/5 flex items-center justify-center">
                     <Music
                       className={`w-5 h-5 ${
-                        settings.backgroundMusic ? 'text-[#FACC15]' : 'text-[#8B95A8]'
+                        settings.backgroundMusic
+                          ? 'text-[#FACC15]'
+                          : 'text-[#8B95A8]'
                       }`}
                     />
                   </div>
@@ -728,7 +756,9 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                 </div>
                 <span
                   className={`w-12 h-7 rounded-full p-1 flex items-center transition-colors ${
-                    settings.backgroundMusic ? 'bg-[#FACC15]' : 'bg-[#10141F] border border-white/10'
+                    settings.backgroundMusic
+                      ? 'bg-[#FACC15]'
+                      : 'bg-[#10141F] border border-white/10'
                   }`}
                 >
                   <span
@@ -745,7 +775,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
               <button
                 type="button"
                 onClick={() => toggleSetting('vibration')}
-                className={`${CARD_CLASS} rounded-2xl px-4 py-3.5 flex items-center justify-between cursor-pointer hover:border-white/20`}
+                className={`${CARD_CLASS} rounded-2xl px-4 py-3 flex items-center justify-between cursor-pointer hover:border-white/20`}
               >
                 <div className="flex items-center gap-3 text-left">
                   <div className="w-10 h-10 rounded-xl bg-[#10141F] border border-white/5 flex items-center justify-center">
@@ -764,7 +794,9 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                 </div>
                 <span
                   className={`w-12 h-7 rounded-full p-1 flex items-center transition-colors ${
-                    settings.vibration ? 'bg-[#FACC15]' : 'bg-[#10141F] border border-white/10'
+                    settings.vibration
+                      ? 'bg-[#FACC15]'
+                      : 'bg-[#10141F] border border-white/10'
                   }`}
                 >
                   <span
@@ -777,11 +809,11 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                 </span>
               </button>
 
-              {/* Friend & Invite Alerts Toggle */}
+              {/* Chat & Invite Alerts Toggle */}
               <button
                 type="button"
                 onClick={() => toggleSetting('chatAlerts')}
-                className={`${CARD_CLASS} rounded-2xl px-4 py-3.5 flex items-center justify-between cursor-pointer hover:border-white/20`}
+                className={`${CARD_CLASS} rounded-2xl px-4 py-3 flex items-center justify-between cursor-pointer hover:border-white/20`}
               >
                 <div className="flex items-center gap-3 text-left">
                   <div className="w-10 h-10 rounded-xl bg-[#10141F] border border-white/5 flex items-center justify-center">
@@ -792,7 +824,9 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                     />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-white">Chat &amp; Invite Alerts</p>
+                    <p className="text-sm font-bold text-white">
+                      Chat &amp; Invite Alerts
+                    </p>
                     <p className="text-[11px] text-[#8B95A8]">
                       Notify on messages &amp; match invites
                     </p>
@@ -800,7 +834,9 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                 </div>
                 <span
                   className={`w-12 h-7 rounded-full p-1 flex items-center transition-colors ${
-                    settings.chatAlerts ? 'bg-[#FACC15]' : 'bg-[#10141F] border border-white/10'
+                    settings.chatAlerts
+                      ? 'bg-[#FACC15]'
+                      : 'bg-[#10141F] border border-white/10'
                   }`}
                 >
                   <span
@@ -812,6 +848,49 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                   />
                 </span>
               </button>
+
+              {/* Dice Roll & Token Move Speed Selector */}
+              <div
+                className={`${CARD_CLASS} rounded-2xl p-3.5 flex flex-col gap-2.5`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-[#10141F] border border-white/5 flex items-center justify-center text-[#FACC15]">
+                      <Gauge className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-white">
+                        Dice &amp; Token Speed
+                      </p>
+                      <p className="text-[11px] text-[#8B95A8]">
+                        Dice {GAME_SPEED_CONFIG[settings.gameSpeed].diceMs}ms •
+                        Move {GAME_SPEED_CONFIG[settings.gameSpeed].moveStepMs}
+                        ms/step
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-extrabold text-[#FACC15]">
+                    {GAME_SPEED_CONFIG[settings.gameSpeed].label}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  {(['normal', 'fast', 'turbo'] as const).map((speedKey) => (
+                    <button
+                      key={speedKey}
+                      type="button"
+                      onClick={() => setGameSpeed(speedKey)}
+                      className={`py-2 rounded-full text-xs font-extrabold transition cursor-pointer ${
+                        settings.gameSpeed === speedKey
+                          ? 'bg-[#FACC15] text-[#0B0E17]'
+                          : 'bg-[#10141F] text-[#8B95A8] hover:text-white border border-white/10'
+                      }`}
+                    >
+                      {GAME_SPEED_CONFIG[speedKey].label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <button
