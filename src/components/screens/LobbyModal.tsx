@@ -16,6 +16,7 @@ import {
   Settings,
   Smartphone,
   Sparkles,
+  User,
   Users,
   Volume2,
   VolumeX,
@@ -32,6 +33,7 @@ import { ProfileModal } from './ProfileModal';
 import { FriendsModal } from '../friends/FriendsModal';
 
 export type GameSpeedOption = 'normal' | 'fast' | 'turbo';
+type PendingModeAction = 'online' | 'private' | 'vs-ai' | 'local' | null;
 
 export const GAME_SPEED_CONFIG: Record<
   GameSpeedOption,
@@ -112,6 +114,13 @@ const BTN_SLATE_CLASS =
 const BTN_OUTLINE_GOLD_CLASS =
   'bg-[#181E2C] border-2 border-[#FACC15] text-[#FACC15] hover:bg-[#FACC15]/10 active:scale-[0.99] transition';
 
+const MODE_TITLES: Record<Exclude<PendingModeAction, null>, string> = {
+  online: 'Play Online',
+  private: 'Private Room',
+  'vs-ai': 'Vs Smart AI',
+  local: 'Pass & Play',
+};
+
 function PawnPreviewIcon({ styleId }: { styleId: PawnStyleId }) {
   if (styleId === 'crown') {
     return (
@@ -170,6 +179,8 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
   onLeaveRoom,
 }) => {
   const [playerCount, setPlayerCount] = useState<2 | 4>(2);
+  const [pendingModeAction, setPendingModeAction] =
+    useState<PendingModeAction>(null);
   const [showPrivateModal, setShowPrivateModal] = useState(false);
   const [showFriendsModal, setShowFriendsModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -235,9 +246,9 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
     waitingRoom?.hostId === userUid ||
     activeRoomPlayers[0]?.uid === userUid;
 
-  const launchOfflineMatch = (mode: GameMode) => {
+  const launchOfflineMatch = (mode: GameMode, count: 2 | 4) => {
     const isAI = mode === 'vs-ai';
-    const isFourPlayers = playerCount === 4;
+    const isFourPlayers = count === 4;
 
     const configs: PlayerConfig[] = [
       {
@@ -278,6 +289,22 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
     onStartOfflineGame(configs, mode);
   };
 
+  const handleConfirmPlayerCount = (count: 2 | 4) => {
+    const chosenMode = pendingModeAction;
+    setPlayerCount(count);
+    setPendingModeAction(null);
+
+    if (chosenMode === 'online') {
+      onFindQuickMatch(count);
+    } else if (chosenMode === 'private') {
+      setShowPrivateModal(true);
+    } else if (chosenMode === 'vs-ai') {
+      launchOfflineMatch('vs-ai', count);
+    } else if (chosenMode === 'local') {
+      launchOfflineMatch('local', count);
+    }
+  };
+
   const handleCopyCode = () => {
     if (!activeRoomCode) return;
     navigator.clipboard?.writeText(activeRoomCode);
@@ -293,182 +320,188 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
   };
 
   return (
-    <div className="w-full max-w-md flex flex-col gap-5 select-none text-white">
-      {/* Incoming Friend Matchmaking Invite Banner */}
-      {pendingInvite && (
-        <div
-          className={`${CARD_CLASS} rounded-2xl p-3.5 border-[#FACC15]/50 flex items-center justify-between gap-3`}
-        >
-          <div className="min-w-0">
-            <p className="text-xs font-extrabold text-[#FACC15] uppercase tracking-wider">
-              Matchmaking Invite
-            </p>
-            <p className="text-sm font-bold text-white truncate">
-              {pendingInvite?.fromUsername || 'A friend'} invited you to play!
-            </p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => onAcceptInvite(pendingInvite)}
-              className={`px-3.5 py-1.5 rounded-full ${BTN_GOLD_CLASS} text-xs font-extrabold cursor-pointer`}
-            >
-              Join
-            </button>
-            <button
-              type="button"
-              onClick={onDismissInvite}
-              aria-label="Dismiss Invite"
-              className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[#8B95A8] hover:text-white cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Multiplayer Error Alert */}
-      {mpError && (
-        <div className="rounded-2xl px-4 py-3 bg-rose-500/15 border border-rose-500/40 text-rose-200 text-xs font-semibold text-center">
-          {mpError}
-        </div>
-      )}
-
-      {/* Top Bar: Crown Logo (Left) & Customize + Friends + Settings (Right) */}
-      <div className="flex items-center justify-between">
-        <div className="p-2 text-[#FACC15]">
-          <Crown className="w-7 h-7 fill-[#FACC15]" />
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => setShowCustomizeModal(true)}
-            title="Customize Board & Pawns"
-            aria-label="Customize"
-            className={`w-11 h-11 rounded-full ${CARD_CLASS} flex items-center justify-center text-white/90 hover:text-[#FACC15] transition cursor-pointer`}
-          >
-            <Palette className="w-5 h-5" />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setShowFriendsModal(true)}
-            title="Friends, Chat & Matchmaking"
-            aria-label="Friends"
-            className={`relative w-11 h-11 rounded-full ${CARD_CLASS} flex items-center justify-center text-white/90 hover:text-[#FACC15] transition cursor-pointer`}
-          >
-            <Users className="w-5 h-5" />
-            {totalUnread > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#FACC15] text-[#0B0E17] text-[11px] font-extrabold flex items-center justify-center">
-                {totalUnread}
-              </span>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setShowSettingsModal(true)}
-            title="Game Settings"
-            aria-label="Settings"
-            className={`w-11 h-11 rounded-full ${CARD_CLASS} flex items-center justify-center text-white hover:text-[#FACC15] hover:rotate-45 transition-all duration-200 cursor-pointer`}
-          >
-            <Settings className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-
-      {/* Hero Branding: 3D White Die + Gold Orbital Swoosh + Ludo Sastra */}
-      <div className="flex flex-col items-center text-center mt-1 mb-1">
-        <div className="relative w-20 h-20 flex items-center justify-center mb-1">
-          <svg
-            viewBox="0 0 100 100"
-            className="absolute inset-0 w-full h-full pointer-events-none"
-          >
-            <path
-              d="M 14 58 C 12 80, 84 82, 88 46"
-              fill="none"
-              stroke="#FACC15"
-              strokeWidth="4.5"
-              strokeLinecap="round"
-            />
-            <polygon points="88,40 82,50 93,49" fill="#FACC15" />
-          </svg>
-
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-white via-slate-100 to-slate-300 shadow-xl border border-white/80 transform -rotate-12 flex flex-col justify-between p-2">
-            <div className="flex justify-between">
-              <span className="w-2 h-2 rounded-full bg-[#0B0E17]" />
-              <span className="w-2 h-2 rounded-full bg-[#0B0E17]" />
-            </div>
-            <div className="flex justify-center">
-              <span className="w-2 h-2 rounded-full bg-[#0B0E17]" />
-            </div>
-            <div className="flex justify-between">
-              <span className="w-2 h-2 rounded-full bg-[#0B0E17]" />
-              <span className="w-2 h-2 rounded-full bg-[#0B0E17]" />
-            </div>
-          </div>
-        </div>
-
-        <h1 className="text-[42px] leading-[0.95] font-black italic tracking-tight">
-          <span className="block text-white drop-shadow">Ludo</span>
-          <span className="block text-[#FACC15] drop-shadow">Sastra</span>
-        </h1>
-      </div>
-
-      {/* User Profile & Live Online Status Card (Opens Player Profile) */}
-      <div
-        onClick={() => setShowProfileModal(true)}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => e.key === 'Enter' && setShowProfileModal(true)}
-        className={`${CARD_CLASS} rounded-[24px] p-4 flex items-center justify-between cursor-pointer hover:border-white/20 transition`}
-      >
-        <div className="flex items-center gap-3.5 min-w-0">
-          <div className="w-14 h-14 rounded-2xl bg-[#0E121D] border border-[#FACC15]/50 flex items-center justify-center shrink-0 shadow-inner">
-            <Crown className="w-7 h-7 text-[#FACC15] fill-[#FACC15]" />
-          </div>
-
-          <div className="min-w-0">
-            <p className="text-white font-bold text-[17px] truncate">
-              {displayName}
-            </p>
-            <div className="flex items-center gap-2 text-sm mt-0.5">
-              <span className="text-[#8B95A8] font-medium">Lvl {level}</span>
-              <span className="text-[#8B95A8]">•</span>
-              <span className="inline-flex items-center gap-1 text-[#FACC15] font-bold">
-                <span className="w-4 h-4 rounded-full bg-[#FACC15]/20 border border-[#FACC15] text-[10px] flex items-center justify-center">
-                  $
-                </span>
-                {coins.toLocaleString()}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-1.5 shrink-0">
-          <div className="px-3 py-1.5 rounded-full bg-[#10141F] border border-white/10 flex items-center gap-2">
-            <span
-              className={`w-2.5 h-2.5 rounded-full ${
-                serverConnected
-                  ? 'bg-[#22C55E] shadow-[0_0_8px_#22C55E]'
-                  : 'bg-rose-500'
-              }`}
-            />
-            <span className="text-xs font-semibold text-white">
-              {serverConnected ? `${onlineCount} Online` : 'Offline'}
-            </span>
-          </div>
-          <ChevronRight className="w-4 h-4 text-[#8B95A8]" />
-        </div>
-      </div>
-
-      {/* Mode Action Buttons */}
+    <div className="w-full max-w-lg min-h-[100dvh] mx-auto px-5 py-6 flex flex-col justify-between gap-6 select-none text-white">
+      {/* Top Section: Header Bar & Notifications */}
       <div className="flex flex-col gap-3">
+        {/* Incoming Friend Matchmaking Invite Banner */}
+        {pendingInvite && (
+          <div
+            className={`${CARD_CLASS} rounded-2xl p-3.5 border-[#FACC15]/50 flex items-center justify-between gap-3`}
+          >
+            <div className="min-w-0">
+              <p className="text-xs font-extrabold text-[#FACC15] uppercase tracking-wider">
+                Matchmaking Invite
+              </p>
+              <p className="text-sm font-bold text-white truncate">
+                {pendingInvite?.fromUsername || 'A friend'} invited you to play!
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => onAcceptInvite(pendingInvite)}
+                className={`px-3.5 py-1.5 rounded-full ${BTN_GOLD_CLASS} text-xs font-extrabold cursor-pointer`}
+              >
+                Join
+              </button>
+              <button
+                type="button"
+                onClick={onDismissInvite}
+                aria-label="Dismiss Invite"
+                className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[#8B95A8] hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Multiplayer Error Alert */}
+        {mpError && (
+          <div className="rounded-2xl px-4 py-3 bg-rose-500/15 border border-rose-500/40 text-rose-200 text-xs font-semibold text-center">
+            {mpError}
+          </div>
+        )}
+
+        {/* Top Bar: Crown Logo (Left) & Customize + Friends + Settings (Right) */}
+        <div className="flex items-center justify-between">
+          <div className="p-2 text-[#FACC15]">
+            <Crown className="w-7 h-7 fill-[#FACC15]" />
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setShowCustomizeModal(true)}
+              title="Customize Board & Pawns"
+              aria-label="Customize"
+              className={`w-11 h-11 rounded-full ${CARD_CLASS} flex items-center justify-center text-white/90 hover:text-[#FACC15] transition cursor-pointer`}
+            >
+              <Palette className="w-5 h-5" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowFriendsModal(true)}
+              title="Friends, Chat & Matchmaking"
+              aria-label="Friends"
+              className={`relative w-11 h-11 rounded-full ${CARD_CLASS} flex items-center justify-center text-white/90 hover:text-[#FACC15] transition cursor-pointer`}
+            >
+              <Users className="w-5 h-5" />
+              {totalUnread > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#FACC15] text-[#0B0E17] text-[11px] font-extrabold flex items-center justify-center">
+                  {totalUnread}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowSettingsModal(true)}
+              title="Game Settings"
+              aria-label="Settings"
+              className={`w-11 h-11 rounded-full ${CARD_CLASS} flex items-center justify-center text-white hover:text-[#FACC15] hover:rotate-45 transition-all duration-200 cursor-pointer`}
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Middle Section: Hero Branding + Profile Card */}
+      <div className="flex flex-col gap-6 my-auto">
+        {/* Hero Branding: 3D White Die + Gold Orbital Swoosh + Ludo Sastra */}
+        <div className="flex flex-col items-center text-center">
+          <div className="relative w-24 h-24 flex items-center justify-center mb-1.5">
+            <svg
+              viewBox="0 0 100 100"
+              className="absolute inset-0 w-full h-full pointer-events-none"
+            >
+              <path
+                d="M 14 58 C 12 80, 84 82, 88 46"
+                fill="none"
+                stroke="#FACC15"
+                strokeWidth="4.5"
+                strokeLinecap="round"
+              />
+              <polygon points="88,40 82,50 93,49" fill="#FACC15" />
+            </svg>
+
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-white via-slate-100 to-slate-300 shadow-xl border border-white/80 transform -rotate-12 flex flex-col justify-between p-2.5">
+              <div className="flex justify-between">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#0B0E17]" />
+                <span className="w-2.5 h-2.5 rounded-full bg-[#0B0E17]" />
+              </div>
+              <div className="flex justify-center">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#0B0E17]" />
+              </div>
+              <div className="flex justify-between">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#0B0E17]" />
+                <span className="w-2.5 h-2.5 rounded-full bg-[#0B0E17]" />
+              </div>
+            </div>
+          </div>
+
+          <h1 className="text-[46px] leading-[0.95] font-black italic tracking-tight">
+            <span className="block text-white drop-shadow">Ludo</span>
+            <span className="block text-[#FACC15] drop-shadow">Sastra</span>
+          </h1>
+        </div>
+
+        {/* User Profile & Live Online Status Card (Opens Player Profile) */}
+        <div
+          onClick={() => setShowProfileModal(true)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === 'Enter' && setShowProfileModal(true)}
+          className={`${CARD_CLASS} rounded-[24px] p-4 flex items-center justify-between cursor-pointer hover:border-white/20 transition`}
+        >
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="w-14 h-14 rounded-2xl bg-[#0E121D] border border-[#FACC15]/50 flex items-center justify-center shrink-0 shadow-inner">
+              <Crown className="w-7 h-7 text-[#FACC15] fill-[#FACC15]" />
+            </div>
+
+            <div className="min-w-0">
+              <p className="text-white font-bold text-[17px] truncate">
+                {displayName}
+              </p>
+              <div className="flex items-center gap-2 text-sm mt-0.5">
+                <span className="text-[#8B95A8] font-medium">Lvl {level}</span>
+                <span className="text-[#8B95A8]">•</span>
+                <span className="inline-flex items-center gap-1 text-[#FACC15] font-bold">
+                  <span className="w-4 h-4 rounded-full bg-[#FACC15]/20 border border-[#FACC15] text-[10px] flex items-center justify-center">
+                    $
+                  </span>
+                  {coins.toLocaleString()}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            <div className="px-3 py-1.5 rounded-full bg-[#10141F] border border-white/10 flex items-center gap-2">
+              <span
+                className={`w-2.5 h-2.5 rounded-full ${
+                  serverConnected
+                    ? 'bg-[#22C55E] shadow-[0_0_8px_#22C55E]'
+                    : 'bg-rose-500'
+                }`}
+              />
+              <span className="text-xs font-semibold text-white">
+                {serverConnected ? `${onlineCount} Online` : 'Offline'}
+              </span>
+            </div>
+            <ChevronRight className="w-4 h-4 text-[#8B95A8]" />
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Section: 4 Playing Method Buttons (Opens Player Count Popup on Click) */}
+      <div className="flex flex-col gap-3.5 pb-2">
         <button
           type="button"
-          onClick={() => onFindQuickMatch(playerCount)}
-          className={`${BTN_GOLD_CLASS} w-full h-[60px] rounded-full flex items-center justify-center gap-3 text-[20px] font-extrabold tracking-tight cursor-pointer`}
+          onClick={() => setPendingModeAction('online')}
+          className={`${BTN_GOLD_CLASS} w-full h-[62px] rounded-full flex items-center justify-center gap-3 text-[20px] font-extrabold tracking-tight cursor-pointer`}
         >
           <Play className="w-6 h-6 fill-[#0B0E17] text-[#0B0E17]" />
           <span>Play Online</span>
@@ -476,8 +509,8 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
 
         <button
           type="button"
-          onClick={() => setShowPrivateModal(true)}
-          className={`${BTN_SLATE_CLASS} w-full h-[54px] rounded-full flex items-center justify-center gap-2.5 text-[17px] font-bold cursor-pointer`}
+          onClick={() => setPendingModeAction('private')}
+          className={`${BTN_SLATE_CLASS} w-full h-[56px] rounded-full flex items-center justify-center gap-2.5 text-[17px] font-bold cursor-pointer`}
         >
           <Hash className="w-5 h-5 text-white" />
           <span>Private Room</span>
@@ -486,8 +519,8 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
-            onClick={() => launchOfflineMatch('vs-ai')}
-            className={`${BTN_SLATE_CLASS} h-[54px] rounded-full px-4 flex items-center justify-center gap-2 text-[15px] font-bold cursor-pointer`}
+            onClick={() => setPendingModeAction('vs-ai')}
+            className={`${BTN_SLATE_CLASS} h-[56px] rounded-full px-4 flex items-center justify-center gap-2 text-[15px] font-bold cursor-pointer`}
           >
             <Bot className="w-5 h-5 text-white shrink-0" />
             <span>Vs Smart AI</span>
@@ -495,8 +528,8 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
 
           <button
             type="button"
-            onClick={() => launchOfflineMatch('local')}
-            className={`${BTN_SLATE_CLASS} h-[54px] rounded-full px-4 flex items-center justify-center gap-2 text-[15px] font-bold cursor-pointer`}
+            onClick={() => setPendingModeAction('local')}
+            className={`${BTN_SLATE_CLASS} h-[56px] rounded-full px-4 flex items-center justify-center gap-2 text-[15px] font-bold cursor-pointer`}
           >
             <Users className="w-5 h-5 text-white shrink-0" />
             <span>Pass &amp; Play</span>
@@ -504,50 +537,77 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         </div>
       </div>
 
-      {/* PLAYERS Divider & 2/4 Player Toggle */}
-      <div className="flex flex-col gap-2.5 mt-1">
-        <div className="flex items-center gap-3">
-          <span className="text-[12px] font-extrabold tracking-wider uppercase text-[#8B95A8]">
-            PLAYERS
-          </span>
-          <div className="h-[1px] flex-1 bg-white/10" />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() => setPlayerCount(2)}
-            className={`h-[50px] rounded-full flex items-center justify-center gap-2 text-[15px] font-extrabold transition cursor-pointer ${
-              playerCount === 2
-                ? 'bg-white text-[#0B0E17] shadow-md'
-                : `${BTN_SLATE_CLASS} text-white/80`
-            }`}
+      {/* Popup: Select 2 Players or 4 Players After Clicking Any Game Mode */}
+      {pendingModeAction && (
+        <div
+          onClick={() => setPendingModeAction(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm rounded-[28px] bg-[#0F1422] border border-[#FACC15]/40 p-5 flex flex-col gap-4 shadow-2xl"
           >
-            <Users className="w-4 h-4" />
-            <span>2 Players</span>
-          </button>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-extrabold uppercase tracking-wider text-[#FACC15]">
+                  {MODE_TITLES[pendingModeAction]}
+                </p>
+                <h3 className="text-lg font-black text-white">
+                  Select Players
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPendingModeAction(null)}
+                aria-label="Close Player Selection"
+                className="w-9 h-9 rounded-full bg-[#181E2C] flex items-center justify-center text-[#8B95A8] hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
-          <button
-            type="button"
-            onClick={() => setPlayerCount(4)}
-            className={`h-[50px] rounded-full flex items-center justify-center gap-2 text-[15px] font-extrabold transition cursor-pointer ${
-              playerCount === 4
-                ? 'bg-white text-[#0B0E17] shadow-md'
-                : `${BTN_SLATE_CLASS} text-white/80`
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            <span>4 Players</span>
-          </button>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => handleConfirmPlayerCount(2)}
+                className={`${CARD_CLASS} rounded-2xl p-4 flex flex-col items-center text-center gap-2.5 hover:border-[#FACC15] hover:bg-[#1D2538] active:scale-[0.98] transition cursor-pointer group`}
+              >
+                <div className="w-12 h-12 rounded-2xl bg-[#FACC15]/15 border border-[#FACC15]/40 flex items-center justify-center text-[#FACC15] group-hover:scale-105 transition">
+                  <User className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-base font-black text-white">2 Players</p>
+                  <p className="text-[11px] text-[#8B95A8] mt-0.5">
+                    1v1 Classic Duel
+                  </p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleConfirmPlayerCount(4)}
+                className={`${CARD_CLASS} rounded-2xl p-4 flex flex-col items-center text-center gap-2.5 hover:border-[#FACC15] hover:bg-[#1D2538] active:scale-[0.98] transition cursor-pointer group`}
+              >
+                <div className="w-12 h-12 rounded-2xl bg-[#FACC15]/15 border border-[#FACC15]/40 flex items-center justify-center text-[#FACC15] group-hover:scale-105 transition">
+                  <Users className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-base font-black text-white">4 Players</p>
+                  <p className="text-[11px] text-[#8B95A8] mt-0.5">
+                    4-Way Royal Battle
+                  </p>
+                </div>
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
-{/* Quick Matchmaking Searching Popup */}
+      {/* Quick Matchmaking Searching Popup */}
       {searchingMatch && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="w-full max-w-sm rounded-[28px] bg-[#181E2C] border border-[#FACC15]/40 p-6 flex flex-col items-center text-center gap-5 shadow-2xl">
             <div className="w-full flex items-center justify-between gap-2 px-2">
-              {/* Your Actual Profile Card */}
               <div className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
                 <div className="w-14 h-14 rounded-2xl bg-[#0E121D] border-2 border-[#FACC15] flex items-center justify-center shadow-lg">
                   <Crown className="w-7 h-7 text-[#FACC15] fill-[#FACC15]" />
@@ -560,7 +620,6 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                 </span>
               </div>
 
-              {/* Center VS Spinner */}
               <div className="flex flex-col items-center gap-1 shrink-0">
                 <div className="w-11 h-11 rounded-full bg-[#FACC15]/15 border border-[#FACC15]/50 flex items-center justify-center">
                   <Loader2 className="w-5 h-5 text-[#FACC15] animate-spin" />
@@ -570,7 +629,6 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                 </span>
               </div>
 
-              {/* Opponent Searching Slot */}
               <div className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
                 <div className="w-14 h-14 rounded-2xl bg-[#10141F] border border-dashed border-white/25 flex items-center justify-center">
                   <Users className="w-6 h-6 text-[#8B95A8] animate-pulse" />
@@ -611,7 +669,11 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-black text-white flex items-center gap-2">
                 <Hash className="w-5 h-5 text-[#FACC15]" />
-                <span>{waitingRoom ? 'Private Waiting Room' : 'Private Room'}</span>
+                <span>
+                  {waitingRoom
+                    ? 'Private Waiting Room'
+                    : `Private Room (${playerCount}P)`}
+                </span>
               </h3>
               <button
                 type="button"
@@ -714,7 +776,9 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                     <input
                       type="text"
                       value={roomCodeInput}
-                      onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
+                      onChange={(e) =>
+                        setRoomCodeInput(e.target.value.toUpperCase())
+                      }
                       placeholder="ENTER CODE"
                       maxLength={8}
                       className="flex-1 px-4 py-3 rounded-full bg-[#181E2C] border border-white/10 text-sm font-bold tracking-widest text-white uppercase focus:outline-none focus:border-[#FACC15]"
@@ -788,7 +852,6 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
               </button>
             </div>
 
-            {/* Board Theme Section */}
             <div className="flex flex-col gap-2">
               <p className="text-xs font-extrabold uppercase tracking-wider text-[#8B95A8] flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-[#FACC15]" />
@@ -840,7 +903,6 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
               </div>
             </div>
 
-            {/* Pawn Style Section */}
             <div className="flex flex-col gap-2">
               <p className="text-xs font-extrabold uppercase tracking-wider text-[#8B95A8] flex items-center gap-1.5">
                 <Crown className="w-3.5 h-3.5 text-[#FACC15]" />
@@ -921,7 +983,6 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
             </div>
 
             <div className="flex flex-col gap-2.5">
-              {/* Sound Effects Toggle */}
               <button
                 type="button"
                 onClick={() => toggleSetting('soundEffects')}
@@ -959,7 +1020,6 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                 </span>
               </button>
 
-              {/* Background Music Toggle */}
               <button
                 type="button"
                 onClick={() => toggleSetting('backgroundMusic')}
@@ -976,7 +1036,9 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                     />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-white">Background Music</p>
+                    <p className="text-sm font-bold text-white">
+                      Background Music
+                    </p>
                     <p className="text-[11px] text-[#8B95A8]">
                       Lobby &amp; board theme audio
                     </p>
@@ -999,7 +1061,6 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                 </span>
               </button>
 
-              {/* Vibration / Haptics Toggle */}
               <button
                 type="button"
                 onClick={() => toggleSetting('vibration')}
@@ -1037,7 +1098,6 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                 </span>
               </button>
 
-              {/* Chat & Invite Alerts Toggle */}
               <button
                 type="button"
                 onClick={() => toggleSetting('chatAlerts')}
@@ -1077,7 +1137,6 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                 </span>
               </button>
 
-              {/* Dice Roll & Token Move Speed Selector */}
               <div
                 className={`${CARD_CLASS} rounded-2xl p-3.5 flex flex-col gap-2.5`}
               >

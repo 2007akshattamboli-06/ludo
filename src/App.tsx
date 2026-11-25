@@ -818,7 +818,7 @@ export default function App() {
 
   if (!players && !isOnlinePlaying) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-[radial-gradient(ellipse_at_top,_#1E293B_0%,_#0B0E17_75%)]">
+      <div className="min-h-[100dvh] w-full flex flex-col bg-[radial-gradient(ellipse_at_top,_#1E293B_0%,_#0B0E17_75%)]">
         <LobbyModal
           user={user}
           onlineCount={onlineCount}
