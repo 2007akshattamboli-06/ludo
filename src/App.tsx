@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Clock, Loader2, RotateCcw, Trophy, Users, Volume2, VolumeX } from 'lucide-react';
+import { Clock, RotateCcw, Users, Volume2, VolumeX } from 'lucide-react';
 import {
   GameMode,
   Particle,
@@ -38,10 +38,15 @@ import { soundEngine } from './audio/soundEngine';
 import { LudoBoardCanvas } from './components/board/LudoBoardCanvas';
 import { Dice3D } from './components/dice/Dice3D';
 import { PlayerPod } from './components/hud/PlayerPod';
-import { QuickChatBar } from './components/hud/QuickChatBar';
+import { InMatchChatMessage, QuickChatBar } from './components/hud/QuickChatBar';
 import { LobbyModal } from './components/screens/LobbyModal';
 import { LoginScreen } from './components/screens/LoginScreen';
 import { FriendsModal } from './components/friends/FriendsModal';
+import { GameLoadingScreen } from './components/screens/GameLoadingScreen';
+import {
+  MatchParticipant,
+  MatchResultModal,
+} from './components/screens/MatchResultModal';
 
 type CoordMap = Map<string, [number, number]>;
 
@@ -100,6 +105,7 @@ export default function App() {
   const [mpError, setMpError] = useState<string | null>(null);
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [reactions, setReactions] = useState<Record<string, PlayerReactionPayload | null>>({});
+  const [matchChatMessages, setMatchChatMessages] = useState<InMatchChatMessage[]>([]);
 
   // Friends & Social State
   const [friends, setFriends] = useState<FriendProfile[]>([]);
@@ -118,6 +124,30 @@ export default function App() {
   const particlesRef = useRef<Particle[]>([]);
   const recordedRoomRef = useRef<string | null>(null);
   const activeChatFriendUidRef = useRef<string | null>(null);
+  const onlineRoomRef = useRef<OnlineRoomState | null>(null);
+  const playersRef = useRef<PlayerConfig[] | null>(null);
+
+  useEffect(() => {
+    onlineRoomRef.current = onlineRoom;
+  }, [onlineRoom]);
+
+  useEffect(() => {
+    playersRef.current = players;
+  }, [players]);
+
+  const getPlayerNameByColor = useCallback((color: PlayerColor): string => {
+    const room = onlineRoomRef.current;
+    if (room && (room.status === 'PLAYING' || room.status === 'FINISHED')) {
+      const found = room.players.find((p) => p.color === color);
+      if (found?.username) return found.username;
+    }
+    const localPlayers = playersRef.current;
+    if (localPlayers) {
+      const found = localPlayers.find((p) => p.color === color);
+      if (found?.name) return found.name;
+    }
+    return PLAYER_THEMES[color].name;
+  }, []);
 
   useEffect(() => {
     const onSettingsChanged = (e: Event) => {
@@ -323,6 +353,7 @@ export default function App() {
 
     const onDiceRolled = ({ color, value, tripleSix }: DiceRolledPayload) => {
       const { diceMs } = getGameSpeedDelays();
+      const rollerName = getPlayerNameByColor(color);
       setDiceValue(value);
       setPhase('ANIMATING_ROLL');
       soundEngine.playDiceRoll();
@@ -331,7 +362,7 @@ export default function App() {
         if (tripleSix) {
           setStatusBanner('Three 6s in a row! Turn forfeited.');
         } else {
-          setStatusBanner(`${PLAYER_THEMES[color].name} rolled ${value}`);
+          setStatusBanner(`${rollerName} rolled ${value}`);
         }
       }, diceMs);
     };
@@ -403,6 +434,20 @@ export default function App() {
 
     const onReaction = (reaction: PlayerReactionPayload) => {
       setReactions((prev) => ({ ...prev, [reaction.color]: reaction }));
+      const senderName = getPlayerNameByColor(reaction.color);
+      setMatchChatMessages((prev) => {
+        if (prev.some((m) => m.id === reaction.id)) return prev;
+        return [
+          ...prev.slice(-24),
+          {
+            id: reaction.id || `${Date.now()}-${Math.random()}`,
+            senderName,
+            color: reaction.color,
+            emoji: reaction.emoji,
+            text: reaction.text || reaction.emoji || '',
+          },
+        ];
+      });
       setTimeout(() => {
         setReactions((prev) =>
           prev[reaction.color]?.id === reaction.id ? { ...prev, [reaction.color]: null } : prev
@@ -435,7 +480,7 @@ export default function App() {
       socket.off('token_moved', onTokenMoved);
       socket.off('player_reaction', onReaction);
     };
-  }, [spawnBurst, user]);
+  }, [getPlayerNameByColor, spawnBurst, user]);
 
   useEffect(() => {
     if (
@@ -488,6 +533,7 @@ export default function App() {
     setPendingInvite(null);
     setPlayers(null);
     setWinner(null);
+    setMatchChatMessages([]);
     socketService.getSocket()?.emit('join_room', { user, code: invite.roomCode });
   };
 
@@ -496,6 +542,7 @@ export default function App() {
     await authService.logout();
     setOnlineRoom(null);
     setPlayers(null);
+    setMatchChatMessages([]);
     setUser(null);
   };
 
@@ -506,11 +553,14 @@ export default function App() {
     }
     setPlayers(null);
     setWinner(null);
+    setMatchChatMessages([]);
     setInGameFriendsOpen(false);
   };
 
   const startOfflineGame = (configs: PlayerConfig[], mode: GameMode) => {
-    const firstActive = configs.find((p) => p.active)?.color ?? 'red';
+    const firstPlayer = configs.find((p) => p.active);
+    const firstActive = firstPlayer?.color ?? 'red';
+    const firstName = firstPlayer?.name || PLAYER_THEMES[firstActive].name;
     setOnlineRoom(null);
     setOfflineMode(mode);
     setPlayers(configs);
@@ -521,24 +571,31 @@ export default function App() {
     setConsecutiveSixes(0);
     setValidTokens([]);
     setWinner(null);
+    setMatchChatMessages([]);
     setAnimatedCoords(new Map());
-    setStatusBanner(`${PLAYER_THEMES[firstActive].name}'s turn — Roll!`);
+    setStatusBanner(`${firstName}'s turn — Roll!`);
   };
 
   const advanceOfflineTurn = useCallback(
     (currentTokens: Token[], activePlayers: PlayerConfig[], grantBonusTurn: boolean) => {
       if (grantBonusTurn) {
+        const currentName =
+          activePlayers.find((p) => p.color === turnColor)?.name ||
+          PLAYER_THEMES[turnColor].name;
         setValidTokens([]);
         setPhase('ROLL');
-        setStatusBanner(`Bonus roll for ${PLAYER_THEMES[turnColor].name}!`);
+        setStatusBanner(`Bonus roll for ${currentName}!`);
         return;
       }
       const nextColor = getNextActivePlayerColor(turnColor, activePlayers, currentTokens);
+      const nextName =
+        activePlayers.find((p) => p.color === nextColor)?.name ||
+        PLAYER_THEMES[nextColor].name;
       setTurnColor(nextColor);
       setConsecutiveSixes(0);
       setValidTokens([]);
       setPhase('ROLL');
-      setStatusBanner(`${PLAYER_THEMES[nextColor].name}'s turn`);
+      setStatusBanner(`${nextName}'s turn`);
     },
     [turnColor]
   );
@@ -598,10 +655,13 @@ export default function App() {
       }
 
       if (hasPlayerWon(updatedTokens, turnColor)) {
+        const winnerName =
+          players.find((p) => p.color === turnColor)?.name ||
+          PLAYER_THEMES[turnColor].name;
         soundEngine.playWin();
         setWinner(turnColor);
         setPhase('GAME_OVER');
-        setStatusBanner(`${PLAYER_THEMES[turnColor].name} Wins the Crown!`);
+        setStatusBanner(`${winnerName} Wins the Crown!`);
         if (user) {
           const modeLabel = offlineMode === 'local' ? 'Pass & Play' : 'Vs Smart AI';
           const updatedUser = await authService.recordMatchResult(
@@ -684,6 +744,42 @@ export default function App() {
     executeOfflineMove(token, diceValue);
   };
 
+  const handleLocalMatchChat = (emoji: string, text: string) => {
+    const senderColor: PlayerColor = isOnlinePlaying ? myPerspective : 'red';
+    const senderName = user?.username || getPlayerNameByColor(senderColor);
+    const localId = `local-${Date.now()}-${Math.random()}`;
+
+    if (!isOnlinePlaying) {
+      const localReaction = {
+        id: localId,
+        color: senderColor,
+        username: senderName,
+        emoji,
+        text,
+      } as PlayerReactionPayload;
+
+      setReactions((prev) => ({ ...prev, [senderColor]: localReaction }));
+      setTimeout(() => {
+        setReactions((prev) =>
+          prev[senderColor]?.id === localId
+            ? { ...prev, [senderColor]: null }
+            : prev
+        );
+      }, 3000);
+    }
+
+    setMatchChatMessages((prev) => [
+      ...prev.slice(-24),
+      {
+        id: localId,
+        senderName,
+        color: senderColor,
+        emoji,
+        text: text || emoji,
+      },
+    ]);
+  };
+
   useEffect(() => {
     if (onlineRoom || !players || phase !== 'ROLL') return;
     const activePlayer = players.find((p) => p.color === turnColor);
@@ -709,14 +805,7 @@ export default function App() {
   };
 
   if (authLoading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3 p-4 bg-[radial-gradient(ellipse_at_top,_#1E293B_0%,_#0B0E17_75%)]">
-        <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
-        <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
-          Connecting to Arena...
-        </p>
-      </div>
-    );
+    return <GameLoadingScreen />;
   }
 
   if (!user) {
@@ -772,10 +861,15 @@ export default function App() {
   const totalUnread = Object.values(unreadCounts).reduce((sum, n) => sum + n, 0);
   const totalSocialBadge = incomingRequests.length + totalUnread;
 
-  const displayPlayers: (PlayerConfig & { isMe?: boolean; disconnected?: boolean })[] =
+  const displayPlayers: (PlayerConfig & {
+    uid?: string;
+    isMe?: boolean;
+    disconnected?: boolean;
+  })[] =
     isOnlinePlaying && onlineRoom
       ? onlineRoom.players
           .map((op) => ({
+            uid: op.uid,
             color: op.color,
             name: op.username,
             isAI: false,
@@ -784,7 +878,21 @@ export default function App() {
             disconnected: !op.connected,
           }))
           .sort((a, b) => Number(Boolean(b.isMe)) - Number(Boolean(a.isMe)))
-      : (players ?? []).filter((p) => p.active);
+      : (players ?? [])
+          .filter((p) => p.active)
+          .map((p, idx) => ({
+            ...p,
+            uid: idx === 0 ? user.uid : undefined,
+            isMe: idx === 0,
+          }));
+
+  const matchParticipants: MatchParticipant[] = displayPlayers.map((p) => ({
+    uid: p.uid,
+    color: p.color,
+    name: p.name,
+    isAI: p.isAI,
+    isMe: p.isMe,
+  }));
 
   const canHumanRoll = isOnlinePlaying
     ? phase === 'ROLL' && turnColor === myPerspective
@@ -798,6 +906,19 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col justify-between p-3 sm:p-5 bg-[radial-gradient(ellipse_at_top,_#1E293B_0%,_#0B0E17_80%)]">
+      {/* Victory Reward Animation + Actual Winner Name + Add Friend Modal */}
+      {winner && (
+        <MatchResultModal
+          winnerColor={winner}
+          participants={matchParticipants}
+          currentUser={user}
+          isOnlineMatch={isOnlinePlaying}
+          friends={friends}
+          outgoingRequests={outgoingRequests}
+          onBackToLobby={handleReturnToLobby}
+        />
+      )}
+
       {/* In-Game Friends & Direct Chat Overlay */}
       {inGameFriendsOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -823,7 +944,7 @@ export default function App() {
         <button
           type="button"
           onClick={handleReturnToLobby}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900/80 border border-slate-800 text-xs font-bold text-slate-300 hover:text-white"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900/80 border border-slate-800 text-xs font-bold text-slate-300 hover:text-white cursor-pointer"
         >
           <RotateCcw className="w-3.5 h-3.5" /> Lobby
         </button>
@@ -842,7 +963,7 @@ export default function App() {
             type="button"
             onClick={() => setInGameFriendsOpen(true)}
             aria-label="Friends & Chat"
-            className="relative p-2 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-300 hover:text-amber-400"
+            className="relative p-2 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-300 hover:text-amber-400 cursor-pointer"
           >
             <Users className="w-4 h-4" />
             {totalSocialBadge > 0 && (
@@ -862,7 +983,7 @@ export default function App() {
             type="button"
             onClick={toggleSound}
             aria-label="Toggle Sound"
-            className="p-2 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-300 hover:text-white"
+            className="p-2 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-300 hover:text-white cursor-pointer"
           >
             {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
           </button>
@@ -905,22 +1026,11 @@ export default function App() {
             />
           </div>
 
-          {isOnlinePlaying && !winner && <QuickChatBar />}
-
-          {winner && (
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-slate-950 text-center shadow-xl">
-              <Trophy className="w-7 h-7 mx-auto mb-1" />
-              <p className="font-black text-base">
-                {PLAYER_THEMES[winner].name} Champion!
-              </p>
-              <button
-                type="button"
-                onClick={handleReturnToLobby}
-                className="mt-2.5 w-full py-2 rounded-xl bg-slate-950 text-white text-xs font-bold uppercase tracking-wider"
-              >
-                Back to Lobby
-              </button>
-            </div>
+          {!winner && (
+            <QuickChatBar
+              messages={matchChatMessages}
+              onLocalMessage={handleLocalMatchChat}
+            />
           )}
         </div>
       </main>

@@ -542,21 +542,57 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         </div>
       </div>
 
-      {/* Quick Matchmaking Searching Popup */}
+{/* Quick Matchmaking Searching Popup */}
       {searchingMatch && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-sm rounded-[28px] bg-[#181E2C] border border-[#FACC15]/40 p-6 flex flex-col items-center text-center gap-4 shadow-2xl">
-            <div className="w-16 h-16 rounded-full bg-[#FACC15]/15 border border-[#FACC15]/40 flex items-center justify-center">
-              <Loader2 className="w-8 h-8 text-[#FACC15] animate-spin" />
+          <div className="w-full max-w-sm rounded-[28px] bg-[#181E2C] border border-[#FACC15]/40 p-6 flex flex-col items-center text-center gap-5 shadow-2xl">
+            <div className="w-full flex items-center justify-between gap-2 px-2">
+              {/* Your Actual Profile Card */}
+              <div className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
+                <div className="w-14 h-14 rounded-2xl bg-[#0E121D] border-2 border-[#FACC15] flex items-center justify-center shadow-lg">
+                  <Crown className="w-7 h-7 text-[#FACC15] fill-[#FACC15]" />
+                </div>
+                <p className="text-xs font-extrabold text-white truncate max-w-[110px]">
+                  {displayName}
+                </p>
+                <span className="text-[10px] font-bold text-[#FACC15]">
+                  Lvl {level} • Ready
+                </span>
+              </div>
+
+              {/* Center VS Spinner */}
+              <div className="flex flex-col items-center gap-1 shrink-0">
+                <div className="w-11 h-11 rounded-full bg-[#FACC15]/15 border border-[#FACC15]/50 flex items-center justify-center">
+                  <Loader2 className="w-5 h-5 text-[#FACC15] animate-spin" />
+                </div>
+                <span className="text-[10px] font-black tracking-widest text-[#FACC15]">
+                  VS
+                </span>
+              </div>
+
+              {/* Opponent Searching Slot */}
+              <div className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
+                <div className="w-14 h-14 rounded-2xl bg-[#10141F] border border-dashed border-white/25 flex items-center justify-center">
+                  <Users className="w-6 h-6 text-[#8B95A8] animate-pulse" />
+                </div>
+                <p className="text-xs font-bold text-[#8B95A8] truncate max-w-[110px]">
+                  Searching...
+                </p>
+                <span className="text-[10px] text-[#8B95A8]">
+                  {playerCount}P Arena
+                </span>
+              </div>
             </div>
+
             <div>
-              <h3 className="text-lg font-black text-white">
+              <h3 className="text-base font-black text-white">
                 Finding {playerCount}-Player Match
               </h3>
               <p className="text-xs text-[#8B95A8] mt-1">
-                Matching you with live players on Sastra servers...
+                Matching {displayName} with live players...
               </p>
             </div>
+
             <button
               type="button"
               onClick={onCancelQuickMatch}
